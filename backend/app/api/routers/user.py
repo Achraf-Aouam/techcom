@@ -1,6 +1,6 @@
 from fastapi import APIRouter , status, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from passlib.context import CryptContext # Added
 from typing import List
 
 from app.db import get_db
@@ -12,6 +12,8 @@ from app.api.deps import get_current_active_user
 from app.model.enums import UserRoleType # Changed from app.schema.enums
 
 router = APIRouter()
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # Added
 
 #get curret user 
 @router.get("/me", response_model= UserInDb )
@@ -56,7 +58,8 @@ def get_user_by_id(userid : int, db : Session = Depends(get_db), current_user: U
 #create user
 @router.post("/", response_model=UserInDb)
 def create_user(user:UserCreate  ,db:Session = Depends(get_db)):
-    db_user = UserModel(**user.model_dump())
+    hashed_password = pwd_context.hash(user.password) # Added
+    db_user = UserModel(**user.model_dump(exclude={"password"}), hashed_password=hashed_password) # Modified
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

@@ -53,7 +53,7 @@ class User(Base):
     student_id = Column(Integer, unique=True , nullable= False, index=True)
     name = Column(String(255), nullable=False, index=True)
     email = Column(String(255), unique= True , nullable= False)
-    password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=False) # Modified
     role = Column(Enum(UserRoleType))
     wants_email_notif =Column(Boolean , default= True)
 

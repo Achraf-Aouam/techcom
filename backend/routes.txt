@@ -204,5 +204,5 @@ This document outlines the API routes for the TechCom backend application.
 - Specific role-based access control (RBAC) will need to be implemented for these permissions.
 
 **Note on Schemas:**
-- The `ClubCreate` schema in `app/schema/club.py` is currently `pass`. It should likely inherit from `ClubBase` or define the fields necessary for club creation.
+
 - Consider adding response schemas for membership and attendance that include role or status information (e.g., `ClubMembershipWithUser`, `EventAttendanceWithUser`).

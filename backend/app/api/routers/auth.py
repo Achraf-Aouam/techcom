@@ -38,7 +38,7 @@ def login_for_access_token(
     #         detail="Incorrect username or password",
     #         headers={"WWW-Authenticate": "Bearer"},
     #     )
-    if not user or not security.verify_password(form_data.password, user.password.strip()):
+    if not user or not security.verify_password(form_data.password, user.hashed_password.strip()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
