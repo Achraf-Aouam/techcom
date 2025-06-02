@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 
 from app.core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-from app.schema.user import UserInDb # Assuming UserInDb contains role information
+from app.schema.user import UserInDb 
 from app.schema.token import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -33,8 +33,8 @@ def decode_access_token(token: str) -> Optional[TokenData]:
         username: Optional[str] = payload.get("sub")
         if username is None:
             return None
-        # Add other claims you might have stored, like roles
-        roles_str: Optional[str] = payload.get("roles") # Assuming roles are stored as a comma-separated string or similar
+        
+        roles_str: Optional[str] = payload.get("roles") 
         
         token_data = TokenData(username=username, roles=roles_str)
         return token_data

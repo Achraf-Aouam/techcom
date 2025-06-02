@@ -2,15 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import Base, engine
-from app.api.routers import auth  # Import the auth router
-# If you create other routers (e.g., for users, clubs, events), import them here
-# from app.api.routers import users, clubs, events
+from app.api.routers import auth, user, club, event 
+
 
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="SAO club manager",  # Corrected: comma added
+    title="SAO club manager",  
     description="app for managing clubs"
 )
 
@@ -23,13 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the authentication router
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 
-# Example for other routers (uncomment and adjust as you build them)
-# app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
-# app.include_router(clubs.router, prefix="/api/v1/clubs", tags=["Clubs"])
-# app.include_router(events.router, prefix="/api/v1/events", tags=["Events"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(user.router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(club.router, prefix="/api/v1/clubs", tags=["Clubs"])
+app.include_router(event.router, prefix="/api/v1/events", tags=["Events"])
 
 
 @app.get("/")

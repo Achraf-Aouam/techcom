@@ -14,7 +14,7 @@ class ClubBase(BaseModel):
     color_code : Optional[str] = Field("#103105", pattern = HEX_COLOR_REGEX )
     is_active : Optional[bool] = True
 
-class ClubCreate(BaseModel):
+class ClubCreate(ClubBase):
     pass 
 
 class ClubUpdate(BaseModel):
@@ -29,5 +29,5 @@ class ClubInDb(ClubBase):
     created_at: datetime 
     updated_at: datetime
 
-    class config:
+    class Config:
         orm_mode  = True

@@ -1,4 +1,4 @@
-# API Route Specifications
+z# API Route Specifications
 
 This document outlines the API routes for the TechCom backend application.
 
@@ -42,7 +42,7 @@ This document outlines the API routes for the TechCom backend application.
 - **Endpoint:** `GET /users/{user_id}`
 - **Description:** Retrieves the details of a specific user by their ID.
 - **Response Body:** `UserInDb` schema.
-- **Permissions:** Admin, or self.
+- **Permissions:** SAO Admin,club manager or self.
 
 ### 5. Update User by ID (Admin)
 
@@ -50,14 +50,14 @@ This document outlines the API routes for the TechCom backend application.
 - **Description:** Updates the details of a specific user.
 - **Request Body:** `UserUpdate` schema.
 - **Response Body:** `UserInDb` schema.
-- **Permissions:** Admin.
+- **Permissions:** SAO admin.
 
 ### 6. Delete User by ID (Admin)
 
 - **Endpoint:** `DELETE /users/{user_id}`
 - **Description:** Deletes a specific user.
 - **Response Body:** Success message.
-- **Permissions:** Admin.
+- **Permissions:** SAO Admin.
 
 ### 7. Get All Users (Admin)
 
@@ -65,7 +65,7 @@ This document outlines the API routes for the TechCom backend application.
 - **Description:** Retrieves a list of all users.
 - **Query Parameters:** `skip: int = 0`, `limit: int = 100`
 - **Response Body:** `List[UserInDb]` schema.
-- **Permissions:** Admin.
+- **Permissions:** SAO Admin.
 
 ## Clubs
 
@@ -73,7 +73,7 @@ This document outlines the API routes for the TechCom backend application.
 
 - **Endpoint:** `POST /clubs/`
 - **Description:** Creates a new club.
-- **Request Body:** `ClubCreate` schema (Note: `ClubCreate` is currently empty in `club.py`, it should likely be `ClubBase` or similar).
+- **Request Body:** `ClubCreate` schema .
 - **Response Body:** `ClubInDb` schema.
 - **Permissions:** Authenticated User (e.g., Admin, or specific roles).
 
@@ -235,5 +235,4 @@ This document outlines the API routes for the TechCom backend application.
 
 **Note on Schemas:**
 
-- The `ClubCreate` schema in `app/schema/club.py` is currently `pass`. It should likely inherit from `ClubBase` or define the fields necessary for club creation.
 - Consider adding response schemas for membership and attendance that include role or status information (e.g., `ClubMembershipWithUser`, `EventAttendanceWithUser`).
