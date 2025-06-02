@@ -41,11 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getCurrentUser(token)
         .then(setUser)
         .catch(() => {
-          // Token might be invalid/expired
           localStorage.removeItem("authToken");
           setToken(null);
           setUser(null);
-          router.push("/login"); // Redirect to login if token is invalid
+          router.push("/login");
         })
         .finally(() => setIsLoading(false));
     } else {
@@ -57,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (data: TokenResponse) => {
     setToken(data.access_token);
-    setIsLoading(true); // Set loading true while fetching user profile
+    setIsLoading(true);
   };
 
   const logout = () => {

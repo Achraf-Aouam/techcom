@@ -4,20 +4,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Assuming you have this from shadcn/ui
-import { toast } from "@/components/ui/toaster"; // Ensure this path is correct
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toaster";
 import { LoginSchema, LoginData, loginUser } from "@/lib/authService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect } from "react"; // Import useEffect
+import { useEffect } from "react";
 
 export default function LoginPage() {
-  const { login, token, isLoading } = useAuth(); // Add token and isLoading
+  const { login, token, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect if user is already logged in and not loading
     if (!isLoading && token) {
       router.push("/profile");
     }
@@ -34,7 +33,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginData) => {
     try {
       const tokenResponse = await loginUser(data);
-      login(tokenResponse); // login from useAuth()
+      login(tokenResponse);
       toast("Login Successful!", {
         description: "Redirecting to your profile...",
       });
@@ -49,7 +48,6 @@ export default function LoginPage() {
   };
 
   if (isLoading || token) {
-    // Show loading or null if redirecting, to prevent flash of login form
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         Loading...

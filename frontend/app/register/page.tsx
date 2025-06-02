@@ -11,19 +11,18 @@ import {
   RegisterData,
   registerUser,
   UserRoleSchema,
-  loginUser, // Import loginUser
+  loginUser,
 } from "@/lib/authService";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
-import { useEffect } from "react"; // Import useEffect
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { login: authLogin, token, isLoading } = useAuth(); // Add token and isLoading, alias login to authLogin
+  const { login: authLogin, token, isLoading } = useAuth();
 
   useEffect(() => {
-    // Redirect if user is already logged in and not loading
     if (!isLoading && token) {
       router.push("/profile");
     }
@@ -36,31 +35,29 @@ export default function RegisterPage() {
   } = useForm<RegisterData>({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
-      role: "STUDENT", // Default role
+      role: "STUDENT",
     },
   });
 
   const onSubmit = async (data: RegisterData) => {
     try {
       await registerUser(data);
-      // Attempt to login after successful registration
+
       try {
         const loginData = { username: data.email, password: data.password };
         const tokenResponse = await loginUser(loginData);
-        authLogin(tokenResponse); // Update auth context
+        authLogin(tokenResponse);
         toast("Registration Successful!", {
           description: "You are now logged in and will be redirected.",
         });
         router.push("/profile");
       } catch (loginError: any) {
-        // Handle login failure after registration
         toast("Registration Successful, Login Failed", {
           description: loginError.message || "Please try logging in manually.",
         });
-        router.push("/login"); // Redirect to login if auto-login fails
+        router.push("/login");
       }
     } catch (error: any) {
-      // Handle registration failure
       toast("Registration Failed", {
         description:
           error.message || "An unexpected error occurred. Please try again.",
@@ -69,7 +66,6 @@ export default function RegisterPage() {
   };
 
   if (isLoading || token) {
-    // Show loading or null if redirecting, to prevent flash of register form
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         Loading...

@@ -1,11 +1,9 @@
 import { z } from "zod";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1"; // Adjust if your backend is hosted elsewhere
-
-// Schemas based on OpenAPI_docs.json
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
 
 export const LoginSchema = z.object({
-  username: z.string().min(1, "Username is required"), // Can be student_id or email
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 export type LoginData = z.infer<typeof LoginSchema>;
@@ -38,13 +36,11 @@ export interface UserProfile {
   updated_at: string;
 }
 
-// API Service Functions
-
 export async function loginUser(data: LoginData): Promise<TokenResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/token`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded", // FastAPI token endpoint expects form data
+      "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams(data),
   });

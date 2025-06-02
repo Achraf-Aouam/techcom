@@ -24,8 +24,6 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    // This case should ideally be handled by the redirect in useEffect,
-    // but as a fallback:
     return (
       <div className="flex items-center justify-center min-h-screen">
         Please login to view this page.
