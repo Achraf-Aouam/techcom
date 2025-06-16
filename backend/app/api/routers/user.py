@@ -59,7 +59,7 @@ def get_user_by_id(userid : int, db : Session = Depends(get_db), current_user: U
 @router.post("/", response_model=UserInDb)
 def create_user(user:UserCreate  ,db:Session = Depends(get_db)):
     hashed_password = pwd_context.hash(user.password) # Added
-    db_user = UserModel(**user.model_dump(exclude={"password"}), hashed_password=hashed_password) # Modified
+    db_user = UserModel(**user.model_dump(exclude={"password", "role"}), hashed_password=hashed_password) # Modified
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -68,7 +68,15 @@ def create_user(user:UserCreate  ,db:Session = Depends(get_db)):
 #update current user
 @router.put("/me", response_model= UserInDb)
 def update_current_user_me(user_data: UserUpdate ,db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
-    user_update_data = user_data.model_dump(exclude_unset=True)
+    user_update_data = user_data.model_dump(exclude_unset=True,exclude={"password"})
+    if user_data.password:
+        hashed_password = pwd_context.hash(user_data.password)
+        user_update_data["hashed_password"] = hashed_password
+    
+    not_allowed_fields = ["role"]
+    for key in list(user_update_data.keys()):
+        if key in not_allowed_fields:
+            del user_update_data[key]
     for key, value in user_update_data.items():
         setattr(current_user, key, value)
     
