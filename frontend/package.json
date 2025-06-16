@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "generate-api": "orval --config ./orval.config.js",
-    "dev": "npm run next dev --turbopack",
-    "build": "npm run next build",
+    "dev": "next dev --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
