@@ -1,2 +1,11 @@
 protect roles when creating user and updating user
+
 check the db schemas and there relations aka user with details like clubs he is member of
+
+check club and user manager relation ✅
+
+endpoint for admin to modify club's admin and user role to admin ✅
+
+creating a club, add manager while creating club
+
+updating event status should be role based : going from planing to posted should be only by admin

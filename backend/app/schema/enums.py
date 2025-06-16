@@ -13,6 +13,3 @@ class EventStatusType(str, enum.Enum):
     CURRENT = "CURRENT"
     PAST = "PAST"
 
-class ClubMemberRoleType(str, enum.Enum):
-    MANAGER = "MANAGER"
-    MEMBER = "MEMBER"

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core import security
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.db import get_db
-from app.model.model import User as UserModel # Assuming your User model
+from app.model.model import User as UserModel , Club as ClubModel # Assuming your User model
 from app.schema.token import Token
 from app.schema.user import UserInDb # For response model if needed
 
@@ -55,8 +55,17 @@ def login_for_access_token(
     # For simplicity, using the single role from the model.
     roles_str = str(user.role.value) # Convert enum to string
 
+    club = None
+
+    if roles_str ==  "CLUB_MANAGER":
+        club_db = db.query(ClubModel).filter(ClubModel.manager_id == user.id).first()
+        if club_db:
+            club = club_db
+    
+
+
     access_token = security.create_access_token(
-        data={"sub": user.email, "roles": roles_str}, # Using email as subject, add roles
+        data={"sub": user.email, "roles": roles_str} if not club else {"sub": user.email, "roles": roles_str, "managed_club": club.id}, # Using email as subject, add roles
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}

@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, func, ForeignKe
 from sqlalchemy.orm import relationship
 from app.db import Base
 
-from .enums import UserRoleType, ClubMemberRoleType, EventStatusType
+from .enums import UserRoleType, EventStatusType
 
 
 
@@ -11,7 +11,7 @@ club_memberships = Table(
     Base.metadata,
     Column("club_id" ,Integer,ForeignKey("clubs.id"), primary_key= True)  ,
     Column("user_id",Integer,ForeignKey("users.id"), primary_key= True) ,
-    Column("role_in_club" , Enum(ClubMemberRoleType), server_default=ClubMemberRoleType.MEMBER),
+    
     Column("joined_at" , TIMESTAMP, server_default=func.now())
 
 )
@@ -37,6 +37,8 @@ class Club(Base):
     color_code = Column(String(7), nullable=True)
     is_active = Column(Boolean , default=True)
 
+    manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    manager = relationship("User", foreign_keys=[manager_id])
 
     events = relationship("Event" , back_populates="club")
 

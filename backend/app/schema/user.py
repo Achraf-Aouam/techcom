@@ -27,6 +27,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=8)
 
 
+
 class UserInDb(UserBase):
     id: int
     created_at: datetime

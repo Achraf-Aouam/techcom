@@ -8,7 +8,7 @@ from app.model.model import User as UserModel, Club as ClubModel, Event as Event
 from app.schema.user import UserCreate , UserUpdate , UserInDb
 from app.schema.club import ClubInDb # Added
 from app.schema.event import EventInDb # Added
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_user
 from app.model.enums import UserRoleType # Changed from app.schema.enums
 
 router = APIRouter()
@@ -17,13 +17,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # Added
 
 #get curret user 
 @router.get("/me", response_model= UserInDb )
-def get_current_user_me(current_user: UserModel = Depends(get_current_active_user)): # Changed parameter name for clarity
+def get_current_user_me(current_user: UserModel = Depends(get_current_user)): # Changed parameter name for clarity
     return current_user
 
 
 #get all users only sao
 @router.get("/", response_model= List[UserInDb] )
-def get_all_users(db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user), skip: int = 0, limit: int = 100): # Added current_user dependency
+def get_all_users(db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_user), skip: int = 0, limit: int = 100): # Added current_user dependency
     if current_user.role != UserRoleType.SAO_ADMIN: # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -35,7 +35,7 @@ def get_all_users(db : Session = Depends(get_db), current_user: UserModel = Depe
 
 #get user by id only sao or admin
 @router.get("/{userid}" , response_model= UserInDb)
-def get_user_by_id(userid : int, db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user)):
+def get_user_by_id(userid : int, db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     # Check if the current user is SAO_ADMIN or CLUB_MANAGER
     if current_user.role == UserRoleType.SAO_ADMIN or \
        current_user.role == UserRoleType.CLUB_MANAGER:# type: ignore
@@ -67,7 +67,7 @@ def create_user(user:UserCreate  ,db:Session = Depends(get_db)):
 
 #update current user
 @router.put("/me", response_model= UserInDb)
-def update_current_user_me(user_data: UserUpdate ,db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user)):
+def update_current_user_me(user_data: UserUpdate ,db : Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     user_update_data = user_data.model_dump(exclude_unset=True)
     for key, value in user_update_data.items():
         setattr(current_user, key, value)
@@ -79,7 +79,7 @@ def update_current_user_me(user_data: UserUpdate ,db : Session = Depends(get_db)
 
 #update user by id (Admin)
 @router.put("/{user_id}", response_model=UserInDb)
-def update_user_by_id(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user)):
+def update_user_by_id(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     if current_user.role != UserRoleType.SAO_ADMIN: # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -101,7 +101,7 @@ def update_user_by_id(user_id: int, user_data: UserUpdate, db: Session = Depends
 
 #delete user by id (Admin)
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
-def delete_user_by_id(user_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_active_user)):
+def delete_user_by_id(user_id: int, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     if current_user.role != UserRoleType.SAO_ADMIN: # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -122,7 +122,7 @@ def delete_user_by_id(user_id: int, db: Session = Depends(get_db), current_user:
 def get_clubs_for_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_user)
 ):
     if not (current_user.role == UserRoleType.SAO_ADMIN or current_user.id == user_id): # type: ignore
         raise HTTPException(
@@ -141,7 +141,7 @@ def get_clubs_for_user(
 def get_events_attended_by_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_user)
 ):
     if not (current_user.role == UserRoleType.SAO_ADMIN or current_user.id == user_id): # type: ignore
         raise HTTPException(

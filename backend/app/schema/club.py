@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import Optional , List
 
 
-from .enums import ClubMemberRoleType,EventStatusType,UserRoleType
+from .enums import EventStatusType,UserRoleType
 
 HEX_COLOR_REGEX = r"^#(?:[0-9a-fA-F]{3}){1,2}$"
 
@@ -13,6 +13,7 @@ class ClubBase(BaseModel):
     image_url : Optional[str] = None
     color_code : Optional[str] = Field("#103105", pattern = HEX_COLOR_REGEX )
     is_active : Optional[bool] = True
+    manager_id : Optional[int] 
 
 class ClubCreate(ClubBase):
     pass 
@@ -21,8 +22,9 @@ class ClubUpdate(BaseModel):
     name :Optional[str] =  Field(None, min_length=1, max_length=255)
     description : Optional[str] = None
     image_url : Optional[str] = None
-    color_code : Optional[str] = Field("#103105", pattern = HEX_COLOR_REGEX )
+    color_code : Optional[str] = Field(None, pattern = HEX_COLOR_REGEX )
     is_active : Optional[bool] = True
+    manger_id : Optional[int] = None
 
 class ClubInDb(ClubBase):
     id:int
