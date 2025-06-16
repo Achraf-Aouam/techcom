@@ -9,3 +9,7 @@ endpoint for admin to modify club's admin and user role to admin ✅
 creating a club, add manager while creating club
 
 updating event status should be role based : going from planing to posted should be only by admin
+
+update user by id should hash password
+
+
