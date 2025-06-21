@@ -9,7 +9,7 @@ class UserBase(BaseModel):
     student_id: int
     name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
-    role: UserRoleType
+    role: Optional[UserRoleType] = UserRoleType.STUDENT
     wants_email_notif: Optional[bool] = True
 
 
