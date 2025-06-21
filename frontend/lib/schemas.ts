@@ -4,7 +4,7 @@ import { z } from "zod";
 // Schema for the login form. Matches the backend's OAuth2PasswordRequestForm.
 // The backend accepts either email or student_id as 'username'.
 export const LoginSchema = z.object({
-  username: z.string().min(1, { message: "Username is required." }),
+  username: z.union([z.string().email(), z.coerce.number()]),
   password: z
     .string()
     .min(8, { message: "Password must be at least 8 characters." }),
@@ -21,8 +21,8 @@ export const UserSchema = z.object({
   email: z.string().email(),
   role: z.enum(["STUDENT", "CLUB_MANAGER", "SAO_ADMIN"]), // Match your UserRoleType enum
   wants_email_notif: z.boolean(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
 });
 
 export type User = z.infer<typeof UserSchema>;
@@ -34,3 +34,12 @@ export interface DecodedToken {
   managed_club?: number; // Optional club ID
   exp: number; // Expiration timestamp
 }
+
+export const RegisterSchema = z.object({
+  student_id: z.coerce.number(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(8),
+});
+
+export type RegisterInput = z.infer<typeof RegisterSchema>;

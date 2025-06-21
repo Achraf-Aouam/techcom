@@ -16,25 +16,33 @@ import { Label } from "@/components/ui/label";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-// function SubmitButton() {
+import {
+  RegisterSchema as formschema,
+  RegisterInput as FormSchemaType,
+} from "@/lib/schemas";
 
-//   return (
+import { loginAction, registerUser } from "@/lib/actions";
 
-//   );
-// }
-
-const formschema = z.object({
-  student_id: z.coerce.number(),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(8),
-});
-
-type FormSchemaType = z.infer<typeof formschema>;
-
-const onSubmit: SubmitHandler<FormSchemaType> = (data) => {
-  console.log(data); // { name: "John", email: "...", age: 30 }
+const onSubmit: SubmitHandler<FormSchemaType> = async (data) => {
   // await apiCall(data);
+
+  try {
+    await registerUser(data);
+    try {
+      const formData = new FormData();
+      formData.append("username", data.email); // Assuming 'id' is email for login
+      formData.append("password", data.password);
+      await loginAction(
+        {
+          message: "",
+          success: true,
+        },
+        formData
+      );
+    } catch (error) {}
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 export default function RegisterForm() {

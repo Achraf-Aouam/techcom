@@ -61,7 +61,7 @@ export default function LoginForm({
           <form action={formAction}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-3">
-                <Label htmlFor="username">Email or Student ID</Label>
+                <Label htmlFor="id">Email or Student ID</Label>
                 <Input
                   id="username"
                   type="text"

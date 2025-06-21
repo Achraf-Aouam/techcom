@@ -29,7 +29,7 @@ async function getCurrentUser(): Promise<User | null> {
 
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/me`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/me`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -44,6 +44,7 @@ async function getCurrentUser(): Promise<User | null> {
     }
 
     const data = await response.json();
+
     // Validate the response against our Zod schema
     const parsedUser = UserSchema.safeParse(data);
 

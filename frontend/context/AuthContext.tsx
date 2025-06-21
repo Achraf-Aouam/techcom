@@ -1,7 +1,7 @@
 // context/AuthContext.tsx
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { User } from "@/lib/schemas";
 
 // Define the shape of the context data
@@ -23,6 +23,10 @@ interface AuthProviderProps {
 // Create the provider component
 export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(initialUser);
+
+  useEffect(() => {
+    setUser(initialUser);
+  }, [initialUser]);
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>
