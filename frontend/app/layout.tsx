@@ -40,6 +40,7 @@ async function getCurrentUser(): Promise<User | null> {
 
     if (!response.ok) {
       console.error("Failed to fetch user");
+
       return null;
     }
 

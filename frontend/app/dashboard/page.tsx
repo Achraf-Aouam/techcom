@@ -3,6 +3,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { logoutAction } from "@/lib/actions"; // We'll create this next
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -20,9 +21,9 @@ export default function DashboardPage() {
       <p>Your Role: {user.role}</p>
 
       <form action={logoutAction}>
-        <button type="submit" className="your-button-styles">
+        <Button type="submit" className="your-button-styles">
           Logout
-        </button>
+        </Button>
       </form>
     </div>
   );
