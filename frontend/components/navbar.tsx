@@ -1,4 +1,4 @@
-import { MainNav } from "./main-nav";
+import { MainNav } from "./mainNav";
 import { Button } from "./ui/button";
 
 const Navbar = () => {

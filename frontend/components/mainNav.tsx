@@ -17,6 +17,11 @@ export function MainNav({
     if (user?.role === "CLUB_MANAGER") {
       return [
         {
+          href: `/dashboard`,
+          label: "Dashboard",
+          active: pathname === `/dashboard`,
+        },
+        {
           href: `/myclub`,
           label: "My Club",
           active: pathname === `/myclub`,
@@ -36,6 +41,11 @@ export function MainNav({
     if (user?.role === "SAO_ADMIN") {
       return [
         {
+          href: `/dashboard`,
+          label: "Dashboard",
+          active: pathname === `/dashboard`,
+        },
+        {
           href: `/clubs`,
           label: "Clubs",
           active: pathname === `/clubs`,
@@ -53,6 +63,11 @@ export function MainNav({
       ];
     }
     return [
+      {
+        href: `/dashboard`,
+        label: "Dashboard",
+        active: pathname === `/dashboard`,
+      },
       {
         href: `/clubs`,
         label: "Clubs",

@@ -5,7 +5,7 @@ import { decrypt } from "@/lib/session";
 import { decodeJwt } from "jose";
 
 // 1. Specify protected and public-only routes
-const protectedRoutes = ["/dashboard", "/profile"];
+const protectedRoutes = ["/dashboard", "/profile", "/clubs"];
 const publicRoutes = ["/login", "/register"];
 
 /**
@@ -52,6 +52,7 @@ export async function middleware(request: NextRequest) {
   // 5. Redirect logic
   // 5.1. If trying to access a protected route with an invalid session, redirect to login.
   if (isProtectedRoute && !isSessionValid) {
+    console.log("session isn't valid");
     const response = NextResponse.redirect(new URL("/login", request.nextUrl));
     // Clear the invalid session cookie if it exists
     if (cookie) {
