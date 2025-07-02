@@ -13,7 +13,7 @@ class ClubBase(BaseModel):
     image_url : Optional[str] = None
     color_code : Optional[str] = Field("#103105", pattern = HEX_COLOR_REGEX )
     is_active : Optional[bool] = True
-    manager_id : Optional[int] 
+    manager_id : Optional[int] = None
 
 class ClubCreate(ClubBase):
     pass 

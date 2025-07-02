@@ -17,7 +17,9 @@ import { CreateButton } from "@/components/createButton";
 import ClubForm from "@/components/clubForm";
 
 const ClubsPage = async () => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs`);
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs?active_only=False`
+  );
   const data: Array<any> = await response.json();
   console.log(data);
   return (
@@ -29,7 +31,7 @@ const ClubsPage = async () => {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {data.map((x) => (
-          <ClubCard {...x} />
+          <ClubCard key={x.id} {...x} />
         ))}
       </div>
     </div>

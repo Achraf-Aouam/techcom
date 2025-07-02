@@ -5,6 +5,8 @@ import { z } from "zod";
 import { LoginSchema, RegisterInput, User, UserSchema } from "./schemas";
 
 import { createSession } from "./session";
+import { getBearerToken } from "@/lib/session";
+
 import { redirect } from "next/navigation";
 import { deleteSession } from "./session";
 
@@ -105,4 +107,47 @@ export async function registerUser(formdata: RegisterInput): Promise<User> {
     };
   }
   return response.json();
+}
+
+export async function getAllUsers(): Promise<Array<User>> {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "retreival of users failed" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}
+
+export async function createClub(submitData: {}) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(submitData),
+  });
 }
