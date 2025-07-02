@@ -72,6 +72,7 @@ def create_club(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)  
 ):
+    print("Received payload:", club.model_dump())
     if current_user.role.value != UserRoleType.SAO_ADMIN  : 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN , detail="Not authorized to create clubs")
 

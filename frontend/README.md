@@ -1,111 +1,36 @@
-# SAO Club Manager Frontend
-
-A modern, responsive web application built with Next.js for managing student clubs, events, and memberships.
-
-## Overview
-
-This frontend application provides an intuitive user interface for the SAO Club Manager system. Built with Next.js and TypeScript, it offers a seamless experience for managing student clubs, events, and member interactions.
-
-## Features
-
-- **Modern UI/UX**
-
-  - Responsive design using Tailwind CSS
-  - Dark/Light mode support
-  - Smooth animations and transitions
-  - Accessible components using Radix UI
-
-- **Authentication**
-
-  - Secure login system
-  - JWT token management
-  - Protected routes
-  - Role-based access control
-
-- **Club Management**
-
-  - Club creation and editing
-  - Member management interface
-  - Club event scheduling
-  - Club profile customization
-
-- **Event Management**
-  - Event creation and management
-  - Attendance tracking
-  - Event status updates
-  - Location and timing management
-
-## Tech Stack
-
-- **Framework**: Next.js 15.3.3
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Form Handling**: React Hook Form with Zod validation
-- **UI Components**: Radix UI
-- **Notifications**: Sonner
-- **Table Management**: TanStack Table
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-1. Install dependencies:
-
-```bash
-npm install
-```
-
-2. Run the development server:
+First, run the development server:
 
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-3. Build for production:
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-npm run build
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-4. Start production server:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```bash
-npm start
-```
+## Learn More
 
-## Project Structure
+To learn more about Next.js, take a look at the following resources:
 
-- `/app` - Next.js app router pages and layouts
-- `/components` - Reusable UI components
-- `/contexts` - React context providers
-- `/lib` - Utility functions and configurations
-- `/public` - Static assets
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Development
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-The project uses several development tools:
+## Deploy on Vercel
 
-- ESLint for code linting
-- TypeScript for type safety
-- Tailwind CSS for styling
-- Turbopack for fast development builds
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-## API Integration
-
-The frontend integrates with the SAO Club Manager Backend API. API documentation is available in:
-
-- `OpenAPI_docs.json` - Full API specification
-- `openapidocs.txt` - Human-readable API documentation
-
-## Contributing
-
-1. Follow the TypeScript and ESLint configurations
-2. Use the provided component library
-3. Maintain consistent styling with Tailwind CSS
-4. Write meaningful commit messages
-
-## Security
-
-- JWT token management
-- Secure API communication
-- Protected routes
-- Input validation using Zod
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

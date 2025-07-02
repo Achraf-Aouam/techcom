@@ -56,7 +56,7 @@ class User(Base):
     name = Column(String(255), nullable=False, index=True)
     email = Column(String(255), unique= True , nullable= False)
     hashed_password = Column(String(255), nullable=False) # Modified
-    role = Column(Enum(UserRoleType))
+    role = Column(Enum(UserRoleType), default=UserRoleType.STUDENT)
     wants_email_notif =Column(Boolean , default= True)
 
     clubs = relationship("Club" , secondary=club_memberships , back_populates="members")
