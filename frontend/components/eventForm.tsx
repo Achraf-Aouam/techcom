@@ -34,7 +34,7 @@ const EventSchema = z.object({
   description: z.string().optional(),
   location: z.string().optional(),
   status: z
-    .enum(["IDEATION", "PLANNING", "POSTED", "CURRENT", "PAST"])
+    .enum(["IDEATION", "PLANNING", "POSTED", "PENDING", "CURRENT", "PAST"])
     .optional(),
   tempFile: z.instanceof(FileList).optional().nullable(),
   start_time: z.string().optional(),
@@ -61,7 +61,9 @@ const onSubmit: SubmitHandler<EventType> = async (data) => {
   const { tempFile, ...rest } = data;
   const submitData = { ...rest, image_url: image_url };
   console.log(submitData);
-  createEvent(submitData);
+  createEvent(submitData).then(() => {
+    window.location.reload();
+  });
 };
 
 const EventForm = () => {

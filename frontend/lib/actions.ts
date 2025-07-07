@@ -190,3 +190,31 @@ export async function createEvent(submitData: {}) {
 
   return response.json();
 }
+
+export async function updateEventStatus(id: number) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${id}/status`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "retreival of users failed" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}

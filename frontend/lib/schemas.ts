@@ -45,10 +45,11 @@ export const RegisterSchema = z.object({
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 
 export type Event = {
+  id: number;
   name: string;
   description: string;
   location: string;
-  status: "IDEATION" | "PLANNING" | "POSTED" | "CURRENT" | "PAST";
+  status: "IDEATION" | "PLANNING" | "POSTED" | "PENDING" | "CURRENT" | "PAST";
   image_url: string;
   start_time: string;
   end_time: string;

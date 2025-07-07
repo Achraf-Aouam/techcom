@@ -5,13 +5,7 @@ import { decrypt } from "@/lib/session";
 import { decodeJwt } from "jose";
 
 // 1. Specify protected and public-only routes
-const protectedRoutes = [
-  "/dashboard",
-  "/profile",
-  "/clubs",
-  "/events",
-  "/myevents",
-];
+
 const publicRoutes = ["/login", "/register"];
 
 /**
@@ -43,10 +37,11 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 2. Check if the current route is protected or public
-  const isProtectedRoute = protectedRoutes.some((prefix) =>
-    path.startsWith(prefix)
-  );
+  // const isProtectedRoute = protectedRoutes.some((prefix) =>
+  //   path.startsWith(prefix)
+  // );
   const isPublicRoute = publicRoutes.some((prefix) => path.startsWith(prefix));
+  const isProtectedRoute = !isPublicRoute;
 
   // 3. Decrypt the session from the cookie
   const cookie = request.cookies.get("session")?.value;
