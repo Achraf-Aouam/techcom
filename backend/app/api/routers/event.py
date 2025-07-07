@@ -14,14 +14,14 @@ router = APIRouter()
 #get all events with optional club_id filter and role based evenstatus access, role 1.2.3
 @router.get("/", response_model=List[EventInDb])
 def get_all_events(
-    skip: Optional[int] = 0,
-    limit: Optional[int] = 100,
+    skip: int = 0,
+    limit: int = 100,
     status_filter: Optional[List[EventStatusType]] = Query(None),
     club_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user : UserModel = Depends(get_current_user)
 ):
-    print("hiit")
+    
     query = db.query(EventModel)
     
     is_student = current_user.role.value == UserRoleType.STUDENT
@@ -34,21 +34,34 @@ def get_all_events(
         club = db.query(ClubModel).filter(ClubModel.id == club_id).first()
         if not club:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Club not found")
-        is_filtered_club_manager = is_manager and current_user.id.value == club.manager_id.value
+        is_filtered_club_manager = is_manager and current_user.id == club.manager_id
     
     used_status = [EventStatusType.POSTED , EventStatusType.PAST , EventStatusType.CURRENT ]
     student_status = [EventStatusType.POSTED , EventStatusType.PAST , EventStatusType.CURRENT]
     admin_status = student_status + [EventStatusType.PLANNING ]
     manager_status = admin_status + [ EventStatusType.IDEATION]
-
+    print("hit")
+    print("student:" , is_student, "admin", is_admin, "manager", is_manager , "clubmanager", is_filtered_club_manager)
     if status_filter:
+        print("status filter", status_filter)
         if is_student:
             used_status = [x for x in student_status if x in status_filter] 
         if is_admin:
             used_status = [x for x in admin_status if x in status_filter]
-        if is_filtered_club_manager:
+        if is_filtered_club_manager: # type: ignore
             used_status = [x for x in manager_status if x in status_filter]
-
+    else: 
+        print ("no filter")
+        if is_student:
+            print("student")
+            used_status = student_status 
+        if is_admin:
+            print("adin")
+            used_status = admin_status 
+        if is_filtered_club_manager:
+            print("wslt")
+            used_status = manager_status 
+    print ("used status:" , used_status)
     query = query.filter(EventModel.status.in_(used_status))
     events = query.offset(skip).limit(limit).all()
     return events
