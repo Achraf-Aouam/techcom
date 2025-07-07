@@ -5,7 +5,7 @@ import { decrypt } from "@/lib/session";
 import { decodeJwt } from "jose";
 
 // 1. Specify protected and public-only routes
-const protectedRoutes = ["/dashboard", "/profile", "/clubs"];
+const protectedRoutes = ["/dashboard", "/profile", "/clubs", "/events"];
 const publicRoutes = ["/login", "/register"];
 
 /**

@@ -14,14 +14,14 @@ router = APIRouter()
 #get all events with optional club_id filter and role based evenstatus access, role 1.2.3
 @router.get("/", response_model=List[EventInDb])
 def get_all_events(
-    skip: int = 0,
-    limit: int = 100,
+    skip: Optional[int] = 0,
+    limit: Optional[int] = 100,
     status_filter: Optional[List[EventStatusType]] = Query(None),
     club_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user : UserModel = Depends(get_current_user)
 ):
-    
+    print("hiit")
     query = db.query(EventModel)
     
     is_student = current_user.role.value == UserRoleType.STUDENT
@@ -132,7 +132,7 @@ def create_event(
     if not club:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Club with id {event.club_id} not found")
 
-    is_club_manager = is_manager and current_user.id.value == club.manager_id.value
+    is_club_manager = is_manager and current_user.id == club.manager_id
         
     if not ( is_club_manager):# type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create events for this club")

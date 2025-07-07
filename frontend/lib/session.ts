@@ -1,6 +1,6 @@
 // lib/session.ts
 import "server-only"; // Ensures this code never runs on the client
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, decodeJwt } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -82,4 +82,24 @@ export async function updateSession(request: NextRequest) {
     expires: parsed.expires,
   });
   return res;
+}
+
+export interface DecodedToken {
+  sub: string;
+  roles: string;
+  managed_club?: number; // This field is optional
+  exp?: number;
+  iat?: number;
+}
+
+export async function getDecodedToken(): Promise<DecodedToken | null> {
+  const token = await getBearerToken();
+  if (!token) return null;
+  try {
+    const decoded = decodeJwt(token);
+    return decoded as unknown as DecodedToken;
+  } catch (error) {
+    console.error("Failed to decode token:", error);
+    return null;
+  }
 }

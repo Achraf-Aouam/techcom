@@ -43,3 +43,13 @@ export const RegisterSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
+
+export type Event = {
+  name: string;
+  description: string;
+  location: string;
+  status: "IDEATION" | "PLANNING" | "POSTED" | "CURRENT" | "PAST";
+  image_url: string;
+  start_time: string;
+  end_time: string;
+};

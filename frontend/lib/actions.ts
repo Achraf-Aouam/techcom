@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { LoginSchema, RegisterInput, User, UserSchema } from "./schemas";
 
-import { createSession } from "./session";
+import { createSession, getDecodedToken } from "./session";
 import { getBearerToken } from "@/lib/session";
 
 import { redirect } from "next/navigation";
@@ -150,4 +150,43 @@ export async function createClub(submitData: {}) {
     },
     body: JSON.stringify(submitData),
   });
+}
+
+export async function createEvent(submitData: {}) {
+  const token = await getBearerToken();
+  const decodedToken = await getDecodedToken();
+
+  if (!token || !decodedToken) {
+    throw new Error("Authentication required.");
+  }
+
+  const eventData = {
+    ...submitData,
+    ...(decodedToken.managed_club && { club_id: decodedToken.managed_club }),
+  };
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(eventData),
+    }
+  );
+  if (!response.ok) {
+    // Optional: Add better error handling
+    let errorDetail = "Failed to create event.";
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      // response is not JSON, keep default message
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
 }

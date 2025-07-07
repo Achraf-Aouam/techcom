@@ -1,17 +1,5 @@
 import ClubCard from "@/components/clubCard";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { ReusableDialog } from "@/components/reusableDialog";
 import { CreateButton } from "@/components/createButton";
 import ClubForm from "@/components/clubForm";
@@ -25,7 +13,7 @@ const ClubsPage = async () => {
   return (
     <div className="p-4">
       <div className="pt-3 justify-end pr-8 pl-8">
-        <ReusableDialog trigger={<CreateButton />} title="Test">
+        <ReusableDialog trigger={<CreateButton />} title="Create a club">
           <ClubForm />
         </ReusableDialog>
       </div>
