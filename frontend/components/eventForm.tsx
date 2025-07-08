@@ -27,7 +27,6 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { createEvent } from "@/lib/actions";
-import { Description } from "@radix-ui/react-dialog";
 
 const EventSchema = z.object({
   name: z.string(),
@@ -43,40 +42,41 @@ const EventSchema = z.object({
 
 type EventType = z.infer<typeof EventSchema>;
 
-const onSubmit: SubmitHandler<EventType> = async (data) => {
-  console.log(data);
-  let image_url: string | null = null;
-
-  if (data.tempFile) {
-    const storageRef = ref(storage, `eventImages/${data.name}`);
-    try {
-      await uploadBytes(storageRef, data.tempFile[0]);
-      image_url = await getDownloadURL(storageRef);
-    } catch (error) {
-      console.error("Image upload failed:", error);
-      image_url = null;
-    }
-  }
-
-  const { tempFile, ...rest } = data;
-  const submitData = { ...rest, image_url: image_url };
-  console.log(submitData);
-  createEvent(submitData).then(() => {
-    window.location.reload();
-  });
-};
-
 const EventForm = () => {
   const {
     register,
     handleSubmit,
     control,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<EventType>({
     resolver: zodResolver(EventSchema),
     defaultValues: { status: "IDEATION" },
   });
+
+  const onSubmit: SubmitHandler<EventType> = async (data) => {
+    console.log(data);
+    let image_url: string | null = null;
+
+    if (data.tempFile) {
+      const storageRef = ref(storage, `eventImages/${data.name}`);
+      try {
+        await uploadBytes(storageRef, data.tempFile[0]);
+        image_url = await getDownloadURL(storageRef);
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        image_url = null;
+      }
+    }
+
+    const { tempFile, ...rest } = data;
+    const submitData = { ...rest, image_url: image_url };
+    console.log(submitData);
+    createEvent(submitData).then(() => {
+      reset();
+    });
+  };
 
   const tempFile = watch("tempFile");
   const imageFile = tempFile?.[0];

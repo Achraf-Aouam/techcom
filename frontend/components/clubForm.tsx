@@ -45,27 +45,6 @@ const clubSchema = z.object({
 
 type clubType = z.infer<typeof clubSchema>;
 
-const onSubmit: SubmitHandler<clubType> = async (data) => {
-  console.log(data);
-  let image_url: string | null = null;
-
-  if (data.tempFile) {
-    const storageRef = ref(storage, `clubImages/${data.name}`);
-    try {
-      await uploadBytes(storageRef, data.tempFile[0]);
-      image_url = await getDownloadURL(storageRef);
-    } catch (error) {
-      console.error("Image upload failed:", error);
-      image_url = null;
-    }
-  }
-
-  const { tempFile, managerId, ...rest } = data;
-  const submitData = { ...rest, image_url: image_url };
-  console.log(submitData);
-  createClub(submitData);
-};
-
 type dropdownrow = {
   label: string;
   value: number;
@@ -90,6 +69,7 @@ const ClubForm = () => {
     handleSubmit,
     control,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<clubType>({
     resolver: zodResolver(clubSchema),
@@ -98,6 +78,29 @@ const ClubForm = () => {
       is_active: false,
     },
   });
+
+  const onSubmit: SubmitHandler<clubType> = async (data) => {
+    console.log(data);
+    let image_url: string | null = null;
+
+    if (data.tempFile) {
+      const storageRef = ref(storage, `clubImages/${data.name}`);
+      try {
+        await uploadBytes(storageRef, data.tempFile[0]);
+        image_url = await getDownloadURL(storageRef);
+      } catch (error) {
+        console.error("Image upload failed:", error);
+        image_url = null;
+      }
+    }
+
+    const { tempFile, managerId, ...rest } = data;
+    const submitData = { ...rest, image_url: image_url };
+    console.log(submitData);
+    createClub(submitData).then(() => {
+      reset();
+    });
+  };
 
   const tempFile = watch("tempFile");
   const imageFile = tempFile?.[0];
