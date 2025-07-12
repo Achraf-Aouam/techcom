@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { string, z } from "zod";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { storage } from "@/lib/firebase";
-import { User } from "@/lib/schemas";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -30,25 +28,11 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClub, getAllUsers } from "@/lib/actions";
-
-const clubSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  // imageUrl: z.string().optional(),
-  color_code: z.string().optional(),
-  is_active: z.boolean().optional(),
-  // managerId: z.string().optional(),
-  managerId: z.coerce.number().optional(),
-
-  tempFile: z.instanceof(FileList).optional().nullable(),
-});
-
-type clubType = z.infer<typeof clubSchema>;
-
-type dropdownrow = {
-  label: string;
-  value: number;
-};
+import {
+  ClubCreateSchema as clubSchema,
+  ClubCreateType as clubType,
+  dropdownrow,
+} from "@/lib/schemas";
 
 const ClubForm = () => {
   const [users, setUsers] = useState<Array<dropdownrow>>([]);

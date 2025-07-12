@@ -1,28 +1,14 @@
 import { Event } from "@/lib/schemas";
-import { getBearerToken, getDecodedToken } from "@/lib/session";
-import { DataTable } from "./data_table";
-import { columns } from "./columns";
+import { DataTable } from "../../../components/data_table";
+import { columns } from "./myEventsColumns";
 import { ReusableDialog } from "@/components/reusableDialog";
 import { CreateButton } from "@/components/createButton";
 import EventForm from "@/components/eventForm";
+import { getManagedClubEvents } from "@/lib/actions";
 
 export default async function myEventsPage() {
-  const token = await getBearerToken();
-  const decodedToken = await getDecodedToken();
+  const data: Array<Event> = await getManagedClubEvents();
 
-  if (!token || !decodedToken) {
-    throw new Error("Authentication required.");
-  }
-
-  const events = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/?club_id=${decodedToken.managed_club}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  const data: Array<Event> = await events.json();
   return (
     <div className="p-4">
       <div className="pt-3 justify-end pr-8 pl-8">

@@ -1,6 +1,5 @@
 "use client";
 
-import { z } from "zod";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { storage } from "@/lib/firebase";
@@ -9,44 +8,17 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 import { Button } from "./ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 import { createEvent } from "@/lib/actions";
-
-const EventSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  location: z.string().optional(),
-  status: z
-    .enum(["IDEATION", "PLANNING", "POSTED", "PENDING", "CURRENT", "PAST"])
-    .optional(),
-  tempFile: z.instanceof(FileList).optional().nullable(),
-  start_time: z.string().optional(),
-  end_time: z.string().optional(),
-});
-
-type EventType = z.infer<typeof EventSchema>;
+import {
+  EventCreateSchema as EventSchema,
+  EventCreateType as EventType,
+} from "@/lib/schemas";
 
 const EventForm = () => {
   const {
     register,
     handleSubmit,
-    control,
     watch,
     reset,
     formState: { errors, isSubmitting },
@@ -59,7 +31,7 @@ const EventForm = () => {
     console.log(data);
     let image_url: string | null = null;
 
-    if (data.tempFile) {
+    if (data.tempFile && data.tempFile.length > 0 && data.tempFile[0]) {
       const storageRef = ref(storage, `eventImages/${data.name}`);
       try {
         await uploadBytes(storageRef, data.tempFile[0]);

@@ -1,8 +1,7 @@
 // lib/actions.ts
 "use server";
 
-import { z } from "zod";
-import { LoginSchema, RegisterInput, User, UserSchema } from "./schemas";
+import { LoginSchema, RegisterInput, User, Event } from "./schemas";
 
 import { createSession, getDecodedToken } from "./session";
 import { getBearerToken } from "@/lib/session";
@@ -217,4 +216,24 @@ export async function updateEventStatus(id: number) {
     };
   }
   return response.json();
+}
+
+export async function getManagedClubEvents() {
+  const token = await getBearerToken();
+  const decodedToken = await getDecodedToken();
+
+  if (!token || !decodedToken) {
+    throw new Error("Authentication required.");
+  }
+
+  const events = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/?club_id=${decodedToken.managed_club}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  const data: Array<Event> = await events.json();
+  return data;
 }
