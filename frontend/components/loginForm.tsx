@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { LoginInput, LoginSchema } from "@/lib/schemas";
+import { LoginInput, LoginSchema } from "@/lib/schemas.server";
 import { loginAction, FormState } from "@/lib/actions";
 
 function SubmitButton() {

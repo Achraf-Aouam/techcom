@@ -1,7 +1,7 @@
 // lib/actions.ts
 "use server";
 
-import { LoginSchema, RegisterInput, User, Event } from "./schemas";
+import { LoginSchema, RegisterInput, User, Event } from "./schemas.server";
 
 import { createSession, getDecodedToken } from "./session";
 import { getBearerToken } from "@/lib/session";
@@ -151,7 +151,7 @@ export async function createClub(submitData: {}) {
   });
 }
 
-export async function createEvent(submitData: {}) {
+export async function createEvent(submitData: Record<string, any>) {
   const token = await getBearerToken();
   const decodedToken = await getDecodedToken();
 
@@ -159,6 +159,17 @@ export async function createEvent(submitData: {}) {
     throw new Error("Authentication required.");
   }
 
+  // submitData = Object.fromEntries(
+  //   Object.entries(submitData).filter(([_, v]) => v !== null && v !== "")
+  // );
+
+  const cleanedData: Record<string, any> = {};
+  for (const key in submitData) {
+    if (submitData[key] !== null && submitData[key] !== "") {
+      cleanedData[key] = submitData[key];
+    }
+  }
+  submitData = cleanedData;
   const eventData = {
     ...submitData,
     ...(decodedToken.managed_club && { club_id: decodedToken.managed_club }),

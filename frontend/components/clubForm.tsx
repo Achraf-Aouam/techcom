@@ -1,12 +1,9 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
 import { storage } from "@/lib/firebase";
-
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -16,7 +13,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
 import {
   Command,
   CommandEmpty,
@@ -28,11 +24,11 @@ import {
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClub, getAllUsers } from "@/lib/actions";
+import { dropdownrow } from "@/lib/schemas.server";
 import {
   ClubCreateSchema as clubSchema,
   ClubCreateType as clubType,
-  dropdownrow,
-} from "@/lib/schemas";
+} from "@/lib/schemas.client";
 
 const ClubForm = () => {
   const [users, setUsers] = useState<Array<dropdownrow>>([]);

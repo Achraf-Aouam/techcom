@@ -1,4 +1,4 @@
-import { Event } from "@/lib/schemas";
+import { Event } from "@/lib/schemas.server";
 import { DataTable } from "../../../components/data_table";
 import { columns } from "./myEventsColumns";
 import { ReusableDialog } from "@/components/reusableDialog";
@@ -8,11 +8,12 @@ import { getManagedClubEvents } from "@/lib/actions";
 
 export default async function myEventsPage() {
   const data: Array<Event> = await getManagedClubEvents();
+  console.log(data);
 
   return (
     <div className="p-4">
       <div className="pt-3 justify-end pr-8 pl-8">
-        <ReusableDialog trigger={<CreateButton />} title="Test">
+        <ReusableDialog trigger={<CreateButton />} title="Create New Event">
           {/* <ClubForm /> */}
           <EventForm />
         </ReusableDialog>

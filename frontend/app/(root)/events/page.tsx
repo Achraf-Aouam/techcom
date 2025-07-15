@@ -1,4 +1,4 @@
-import { Event } from "@/lib/schemas";
+import { Event } from "@/lib/schemas.server";
 import { getBearerToken } from "@/lib/session";
 import { DataTable } from "./data_table";
 import { columns } from "./columns";

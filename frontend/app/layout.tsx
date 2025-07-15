@@ -4,7 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { getBearerToken } from "@/lib/session";
-import { User, UserSchema } from "@/lib/schemas";
+import { User, UserSchema } from "@/lib/schemas.server";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({

@@ -8,7 +8,6 @@ from app.model.model import (
     User as UserModel,
     Club as ClubModel,
     event_attendance,
-    club_memberships,
 )
 from app.schema.event import EventCreate, EventUpdate, EventInDb
 from app.schema.user import UserInDb
@@ -384,7 +383,7 @@ def update_event_status_by_id(
     is_admin = current_user.role == UserRoleType.SAO_ADMIN
     is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if is_student:
+    if bool(is_student):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this event",
@@ -403,13 +402,13 @@ def update_event_status_by_id(
         )
     is_club_manager = is_manager and current_user.id == club.manager_id
 
-    if not (is_club_manager):
+    if not (bool(is_club_manager)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this event",
         )
 
-    if event.status == EventStatusType.PENDING:  # type: ignore
+    if event.status == EventStatusType.PENDING:
         if is_club_manager:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

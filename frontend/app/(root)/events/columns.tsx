@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Event } from "@/lib/schemas";
+import { Event } from "@/lib/schemas.server";
 
 export const columns: ColumnDef<Event>[] = [
   {

@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   RegisterSchema as formschema,
   RegisterInput as FormSchemaType,
-} from "@/lib/schemas";
+} from "@/lib/schemas.server";
 
 import { loginAction, registerUser } from "@/lib/actions";
 

@@ -12,22 +12,33 @@ import { Button } from "./ui/button";
 import { createEvent } from "@/lib/actions";
 import {
   EventCreateSchema as EventSchema,
-  EventCreateType as EventType,
-} from "@/lib/schemas";
+  EventCreateType,
+} from "@/lib/schemas.client";
+import { Event } from "@/lib/schemas.client";
+import { FunctionComponent } from "react";
 
-const EventForm = () => {
+interface EventFormProps {
+  ogData?: Event;
+}
+
+const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
+  const isUpdate = !!ogData;
+  const eventid = isUpdate ? ogData.id : null;
+
   const {
     register,
     handleSubmit,
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<EventType>({
+  } = useForm<EventCreateType>({
     resolver: zodResolver(EventSchema),
-    defaultValues: { status: "IDEATION" },
+    defaultValues: ogData
+      ? { ...ogData, tempFile: undefined }
+      : { status: "IDEATION" },
   });
 
-  const onSubmit: SubmitHandler<EventType> = async (data) => {
+  const onSubmit: SubmitHandler<EventCreateType> = async (data) => {
     console.log(data);
     let image_url: string | null = null;
 
@@ -60,6 +71,7 @@ const EventForm = () => {
         <div className="grid gap-3">
           <Label>Name</Label>
           <Input disabled={isSubmitting} type="text" {...register("name")} />
+          {errors.name && <p className="error">{errors.name.message}</p>}
         </div>
         <div className="grid gap-3">
           <Label>description</Label>
@@ -76,6 +88,7 @@ const EventForm = () => {
             type="text"
             {...register("location")}
           />
+          {errors.name && <p className="error">{errors.name.message}</p>}
         </div>
         <div className="grid gap-3">
           <Label>Image</Label>

@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Event } from "@/lib/schemas";
+import { Event } from "@/lib/schemas.client";
 import { Button } from "@/components/ui/button";
 import { ReusableDialog } from "@/components/reusableDialog";
 
@@ -11,11 +11,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { updateEventStatus } from "@/lib/actions";
+import EventForm from "@/components/eventForm";
+import { useState } from "react";
 
 export const columns: ColumnDef<Event>[] = [
   {
@@ -90,7 +91,10 @@ export const columns: ColumnDef<Event>[] = [
     accessorKey: "start_time",
     header: () => <div className="text-right pr-2">Start Time</div>,
     cell: ({ row }) => {
-      const datetime: string = row.getValue("start_time");
+      const datetime: string | null = row.getValue("start_time");
+      if (!datetime) {
+        return <div className="text-right pr-2 text-gray-500 italic">N/A</div>;
+      }
       const date = new Date(datetime);
       const formatted = date.toLocaleString(undefined, {
         year: "numeric",
@@ -106,7 +110,10 @@ export const columns: ColumnDef<Event>[] = [
     accessorKey: "end_time",
     header: () => <div className="text-right pr-2">End Time</div>,
     cell: ({ row }) => {
-      const datetime: string = row.getValue("end_time");
+      const datetime: string | null = row.getValue("end_time");
+      if (!datetime) {
+        return <div className="text-right pr-2 text-gray-500 italic">N/A</div>;
+      }
       const date = new Date(datetime);
       const formatted = date.toLocaleString(undefined, {
         year: "numeric",
@@ -124,6 +131,7 @@ export const columns: ColumnDef<Event>[] = [
     header: "Actions",
     cell: ({ row }) => {
       const rowdata = row.original;
+      const [open, setOpen] = useState(false);
       const nextstep = (status = rowdata.status) => {
         switch (status) {
           case "IDEATION":
@@ -163,12 +171,23 @@ export const columns: ColumnDef<Event>[] = [
               >
                 {nextstep()}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setOpen(true)}>
+                Edit
+              </DropdownMenuItem>
 
-              <DropdownMenuItem>Edit</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>View full details</DropdownMenuItem>
+              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <ReusableDialog
+            trigger={null}
+            title="edit test"
+            open={open}
+            onOpenChange={setOpen}
+          >
+            <EventForm ogData={rowdata} />
+          </ReusableDialog>
         </div>
       );
     },

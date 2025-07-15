@@ -1,3 +1,4 @@
+"use client";
 import {
   Dialog,
   DialogClose,
@@ -11,7 +12,7 @@ import {
 import { ReactNode } from "react";
 import { Button } from "./ui/button";
 
-interface DialogProps {
+interface DialogProps extends React.ComponentProps<typeof Dialog> {
   trigger: ReactNode;
   title: string;
   description?: string;
@@ -20,6 +21,8 @@ interface DialogProps {
   className?: string;
   contentClassName?: string;
   showCloseButton?: boolean;
+  // open?: boolean;
+  // onOpenChange?: (open: boolean) => void;
 }
 
 export function ReusableDialog({
@@ -31,9 +34,12 @@ export function ReusableDialog({
   className,
   contentClassName = "sm:max-w-md",
   showCloseButton = false,
+  // open,
+  // onOpenChange,
+  ...rest
 }: DialogProps) {
   return (
-    <Dialog>
+    <Dialog {...rest}>
       <DialogTrigger asChild className={className}>
         {trigger}
       </DialogTrigger>
