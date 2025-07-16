@@ -14,9 +14,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { updateEventStatus } from "@/lib/actions";
+import { DeleteEvent, updateEventStatus } from "@/lib/actions";
 import EventForm from "@/components/eventForm";
 import { useState } from "react";
+import ReusableDeleteDialog from "@/components/reusableDeleteDialog";
 
 export const columns: ColumnDef<Event>[] = [
   {
@@ -131,7 +132,8 @@ export const columns: ColumnDef<Event>[] = [
     header: "Actions",
     cell: ({ row }) => {
       const rowdata = row.original;
-      const [open, setOpen] = useState(false);
+      const [openEdit, setOpenEdit] = useState(false);
+      const [openDelete, setOpenDelete] = useState(false);
       const nextstep = (status = rowdata.status) => {
         switch (status) {
           case "IDEATION":
@@ -171,23 +173,35 @@ export const columns: ColumnDef<Event>[] = [
               >
                 {nextstep()}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setOpen(true)}>
+              <DropdownMenuItem onClick={() => setOpenEdit(true)}>
                 Edit
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
               <DropdownMenuItem>View full details</DropdownMenuItem>
-              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setOpenDelete(true)}
+              >
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <ReusableDialog
             trigger={null}
-            title="edit test"
-            open={open}
-            onOpenChange={setOpen}
+            title={"edit test"}
+            open={openEdit}
+            onOpenChange={setOpenEdit}
           >
             <EventForm ogData={rowdata} />
           </ReusableDialog>
+          <ReusableDeleteDialog
+            trigger={null}
+            open={openDelete}
+            onOpenChange={setOpenDelete}
+            eventId={rowdata.id}
+            onAction={() => DeleteEvent(rowdata.id)}
+          />
         </div>
       );
     },

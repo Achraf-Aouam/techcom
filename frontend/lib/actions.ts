@@ -287,3 +287,30 @@ export async function updateEvent(
   }
   return response.json();
 }
+
+export async function DeleteEvent(eventId: Number) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Delete of Event Failed" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return { success: true };
+}

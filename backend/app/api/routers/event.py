@@ -30,9 +30,9 @@ def get_all_events(
 
     query = db.query(EventModel)
 
-    is_student = current_user.role.value == UserRoleType.STUDENT
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_student = bool(current_user.role == UserRoleType.STUDENT)
+    is_admin = bool(current_user.role == UserRoleType.SAO_ADMIN)
+    is_manager = bool(current_user.role == UserRoleType.CLUB_MANAGER)
     is_filtered_club_manager = False
     if club_id:
 
@@ -93,17 +93,17 @@ def get_event_by_id(
             status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
         )
 
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_admin = bool(current_user.role == UserRoleType.SAO_ADMIN)
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_event_owner = False
     club = db.query(ClubModel).filter(ClubModel.id == event.club_id).first()
     if not club:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
-    is_event_owner = is_manager and current_user.id.value == club.manager_id.value
+    is_event_owner = bool(is_manager and current_user.id == club.manager_id)
 
-    if event.status.value == EventStatusType.IDEATION:
+    if bool(event.status == EventStatusType.IDEATION):
         if is_event_owner:
             return event
         else:
@@ -111,10 +111,7 @@ def get_event_by_id(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Event access unothorized",
             )
-    if (
-        event.status.value == EventStatusType.PLANNING
-        or event.status.value == EventStatusType.PENDING
-    ):
+    if event.status in [EventStatusType.PLANNING, EventStatusType.PENDING]:
         if is_event_owner or is_admin:
             return event
         else:
@@ -135,7 +132,7 @@ def get_event_attendees(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),  # Permissions vary
 ):
-    if current_user.role.value == UserRoleType.STUDENT:
+    if str(current_user.role) == str(UserRoleType.STUDENT):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view event attendees",
@@ -147,17 +144,17 @@ def get_event_attendees(
             status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
         )
 
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_admin = str(current_user.role) == UserRoleType.SAO_ADMIN
+    is_manager = str(current_user.role) == UserRoleType.CLUB_MANAGER
     is_event_owner = False
     club = db.query(ClubModel).filter(ClubModel.id == event.club_id).first()
     if not club:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
-    is_event_owner = is_manager and current_user.id.value == club.manager_id.value
+    is_event_owner = is_manager and current_user.id == club.manager_id
 
-    if not (is_admin or is_event_owner):
+    if not (bool(is_admin) or bool(is_event_owner)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view event attendees",
@@ -181,11 +178,11 @@ def create_event(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    is_student = current_user.role.value == UserRoleType.STUDENT
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_student = current_user.role == UserRoleType.STUDENT
+    is_admin = current_user.role == UserRoleType.SAO_ADMIN
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if is_student or is_admin:
+    if bool(is_student) or bool(is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to create events for this club",
@@ -223,11 +220,11 @@ def register_user_for_event(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    is_student = current_user.role.value == UserRoleType.STUDENT
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_student = current_user.role == UserRoleType.STUDENT
+    is_admin = current_user.role == UserRoleType.SAO_ADMIN
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if is_student or is_admin:
+    if bool(is_student) or bool(is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to add attendance for this event",
@@ -250,7 +247,7 @@ def register_user_for_event(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
-    is_club_manager = is_manager and current_user.id.value == club.manager_id.value
+    is_club_manager = is_manager and current_user.id == club.manager_id
 
     if not (is_club_manager):  # type: ignore
         raise HTTPException(
@@ -290,11 +287,11 @@ def update_event_by_id(
     current_user: UserModel = Depends(get_current_user),
 ):
 
-    is_student = current_user.role.value == UserRoleType.STUDENT
-    is_admin = current_user.role.value == UserRoleType.SAO_ADMIN
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_student = current_user.role == UserRoleType.STUDENT
+    is_admin = current_user.role == UserRoleType.SAO_ADMIN
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if is_student or is_admin:
+    if bool(is_student) or bool(is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this event",
@@ -311,9 +308,9 @@ def update_event_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
-    is_club_manager = is_manager and current_user.id.value == club.manager_id.value
+    is_club_manager = is_manager and current_user.id == club.manager_id
 
-    if not (is_club_manager):
+    if not bool(is_club_manager):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this event",
@@ -339,9 +336,9 @@ def delete_event_by_id(
     current_user: UserModel = Depends(get_current_user),
 ):
 
-    is_manager = current_user.role.value == UserRoleType.CLUB_MANAGER
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if not is_manager:
+    if not bool(is_manager):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this event",
@@ -358,7 +355,7 @@ def delete_event_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
-    is_club_manager = is_manager and current_user.id.value == club.manager_id.value
+    is_club_manager = is_manager and current_user.id == club.manager_id
 
     if not (is_club_manager):  # type: ignore
         raise HTTPException(
@@ -408,14 +405,14 @@ def update_event_status_by_id(
             detail="Not authorized to update this event",
         )
 
-    if event.status == EventStatusType.PENDING:
-        if is_club_manager:
+    if bool(event.status == EventStatusType.PENDING):
+        if bool(is_club_manager):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this event state",
             )
     else:
-        if is_admin:
+        if bool(is_admin):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this event state ",

@@ -5,9 +5,9 @@
 import { z } from "zod";
 
 export const EventCreateSchema = z.object({
-  name: z.string(),
+  name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  location: z.string(),
+  location: z.string().min(1, "Location is required"),
   status: z
     .enum(["IDEATION", "PLANNING", "POSTED", "PENDING", "CURRENT", "PAST"])
     .optional(),

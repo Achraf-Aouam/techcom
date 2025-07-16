@@ -101,10 +101,11 @@ const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
     const submitData = { ...rest, image_url: image_url };
     console.log(submitData);
     isUpdate
-      ? createEvent(submitData).then(() => {
+      ? updateEvent(submitData, eventid!).then(() => {
+          console.log("we are updating");
           reset();
         })
-      : updateEvent(submitData, eventid!).then(() => {
+      : createEvent(submitData).then(() => {
           reset();
         });
   };
