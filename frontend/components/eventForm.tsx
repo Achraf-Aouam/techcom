@@ -21,7 +21,6 @@ import {
 } from "@/lib/schemas.client";
 import { Event } from "@/lib/schemas.client";
 import { FunctionComponent } from "react";
-import { error } from "console";
 
 interface EventFormProps {
   ogData?: Event;
@@ -29,7 +28,6 @@ interface EventFormProps {
 
 const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
   const isUpdate = !!ogData;
-  const ogName = isUpdate ? ogData.name : null;
   const eventid = isUpdate ? ogData.id : null;
   const og_image_url = isUpdate ? ogData.image_url : null;
 
