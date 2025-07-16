@@ -3,19 +3,25 @@
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 import { Button } from "./ui/button";
 
-import { createEvent } from "@/lib/actions";
+import { createEvent, updateEvent } from "@/lib/actions";
 import {
   EventCreateSchema as EventSchema,
   EventCreateType,
 } from "@/lib/schemas.client";
 import { Event } from "@/lib/schemas.client";
 import { FunctionComponent } from "react";
+import { error } from "console";
 
 interface EventFormProps {
   ogData?: Event;
@@ -23,7 +29,9 @@ interface EventFormProps {
 
 const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
   const isUpdate = !!ogData;
+  const ogName = isUpdate ? ogData.name : null;
   const eventid = isUpdate ? ogData.id : null;
+  const og_image_url = isUpdate ? ogData.image_url : null;
 
   const {
     register,
@@ -38,9 +46,47 @@ const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
       : { status: "IDEATION" },
   });
 
+  // case if we update name and there was no image -> do nothing pass ✅
+  // upd name an there was an image left same -> update image ref✅
+  // update name and there was an image that got updated -> delete old image with old name ✅ and upload new with new name✅
+  //update only image ✅
+
   const onSubmit: SubmitHandler<EventCreateType> = async (data) => {
     console.log(data);
     let image_url: string | null = null;
+    if (isUpdate && data.name != ogData.name) {
+      if (og_image_url && og_image_url != "") {
+        const oldstorageRef = ref(storage, `eventImages/${ogData.name}`);
+        const storageRef = ref(storage, `eventImages/${data.name}`);
+        if (data.tempFile && data.tempFile.length > 0 && data.tempFile[0]) {
+          deleteObject(oldstorageRef)
+            .then(() => {
+              console.log("old image deleted");
+            })
+            .catch((error) => {
+              console.log(error);
+            });
+        } else {
+          try {
+            // Get the old image as a blob
+            const oldImageUrl = await getDownloadURL(oldstorageRef);
+            const response = await fetch(oldImageUrl);
+            const blob = await response.blob();
+
+            // Upload the blob to the new storage ref
+            await uploadBytes(storageRef, blob);
+            image_url = await getDownloadURL(storageRef);
+
+            // Delete the old image
+            await deleteObject(oldstorageRef);
+            console.log("Image moved to new name and old image deleted");
+          } catch (err) {
+            console.error("Failed to move image to new name:", err);
+            image_url = og_image_url;
+          }
+        }
+      }
+    }
 
     if (data.tempFile && data.tempFile.length > 0 && data.tempFile[0]) {
       const storageRef = ref(storage, `eventImages/${data.name}`);
@@ -56,9 +102,13 @@ const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
     const { tempFile, ...rest } = data;
     const submitData = { ...rest, image_url: image_url };
     console.log(submitData);
-    createEvent(submitData).then(() => {
-      reset();
-    });
+    isUpdate
+      ? createEvent(submitData).then(() => {
+          reset();
+        })
+      : updateEvent(submitData, eventid!).then(() => {
+          reset();
+        });
   };
 
   const tempFile = watch("tempFile");
@@ -98,6 +148,18 @@ const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
             accept="image/*"
             {...register("tempFile")}
           />
+          {og_image_url && (
+            <div className="mt-3">
+              <p className="text-sm font-medium mb-1">
+                original image Preview:
+              </p>
+              <img
+                src={og_image_url}
+                alt="Preview"
+                className="rounded-md border max-w-[200px] max-h-[150px] object-contain"
+              />
+            </div>
+          )}
           {imagePreview && (
             <div className="mt-3">
               <p className="text-sm font-medium mb-1">Preview:</p>

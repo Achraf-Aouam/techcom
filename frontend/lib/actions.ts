@@ -248,3 +248,32 @@ export async function getManagedClubEvents() {
   const data: Array<Event> = await events.json();
   return data;
 }
+
+export async function updateEvent(data: Record<string, any>, eventId: number) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Update of Event Failed" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}
