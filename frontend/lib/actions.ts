@@ -249,11 +249,21 @@ export async function getManagedClubEvents() {
   return data;
 }
 
-export async function updateEvent(data: Record<string, any>, eventId: number) {
+export async function updateEvent(
+  submitData: Record<string, any>,
+  eventId: number
+) {
   const token = await getBearerToken();
   if (!token) {
     return [];
   }
+  const cleanedData: Record<string, any> = {};
+  for (const key in submitData) {
+    if (submitData[key] !== null && submitData[key] !== "") {
+      cleanedData[key] = submitData[key];
+    }
+  }
+  submitData = cleanedData;
 
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}`,
@@ -262,7 +272,7 @@ export async function updateEvent(data: Record<string, any>, eventId: number) {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(submitData),
     }
   );
 
