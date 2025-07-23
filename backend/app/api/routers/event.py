@@ -368,7 +368,7 @@ def delete_event_by_id(
     return {"detail": "Event deleted successfully"}
 
 
-# update event, role 1 and 2
+# update event status, role 2
 @router.put("/{event_id}/status")
 def update_event_status_by_id(
     event_id: int,
@@ -380,7 +380,7 @@ def update_event_status_by_id(
     is_admin = current_user.role == UserRoleType.SAO_ADMIN
     is_manager = current_user.role == UserRoleType.CLUB_MANAGER
     is_club_manager = False
-    if bool(is_student):
+    if bool(is_student or is_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this event",
@@ -443,3 +443,41 @@ def update_event_status_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid event status",
         )
+
+
+# acc or ref pending event, role 1
+@router.put("/{event_id}/review")
+def review_event(
+    event_id: int,
+    approve: bool,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    # Only SAO Admin can use this route
+    if current_user.role != UserRoleType.SAO_ADMIN:  # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to review events",
+        )
+
+    event = db.query(EventModel).filter(EventModel.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
+
+    if event.status != EventStatusType.PENDING:  # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Event is not in pending state",
+        )
+
+    if approve:
+        event.status = EventStatusType.POSTED  # type: ignore
+    else:
+        event.status = EventStatusType.PLANNING  # type: ignore
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return {"detail": f"Event status updated to {event.status}"}

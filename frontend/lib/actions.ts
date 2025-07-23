@@ -270,6 +270,7 @@ export async function updateEvent(
     {
       method: "PUT",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(submitData),
@@ -313,4 +314,83 @@ export async function DeleteEvent(eventId: Number) {
     };
   }
   return { success: true };
+}
+
+export async function getAdminEvents(
+  params?: Record<string, string | number | Array<any>>
+) {
+  const token = await getBearerToken();
+  // Build query string from params if provided
+  let query = "";
+  if (params && Object.keys(params).length > 0) {
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        value.forEach((v) => searchParams.append(key, String(v)));
+      } else {
+        searchParams.append(key, String(value));
+      }
+    }
+    query = `?${searchParams.toString()}`;
+  } else {
+    query = "";
+  }
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+  console.log(query);
+  const events = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${query}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  const data: Array<Event> = await events.json();
+  return data;
+}
+
+export async function adminEventReview(eventId: number, approve: boolean) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}/review?approve=${approve}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Update of Event Failed" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}
+
+export async function updateClub(data: Record<string, any>) {
+  const token = await getBearerToken();
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(``, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
 }

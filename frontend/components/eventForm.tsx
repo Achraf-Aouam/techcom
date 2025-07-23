@@ -3,6 +3,7 @@
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { storage } from "@/lib/firebase";
+
 import {
   ref,
   uploadBytes,
@@ -147,6 +148,7 @@ const EventForm: FunctionComponent<EventFormProps> = ({ ogData }) => {
             accept="image/*"
             {...register("tempFile")}
           />
+
           {og_image_url && (
             <div className="mt-3">
               <p className="text-sm font-medium mb-1">
