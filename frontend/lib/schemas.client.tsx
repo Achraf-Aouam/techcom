@@ -42,3 +42,16 @@ export type Event = {
   end_time: string | undefined;
   club_id: number;
 };
+
+export const UserSchema = z.object({
+  id: z.number(),
+  student_id: z.number(),
+  name: z.string(),
+  email: z.string().email(),
+  role: z.enum(["STUDENT", "CLUB_MANAGER", "SAO_ADMIN"]), // Match your UserRoleType enum
+  wants_email_notif: z.boolean(),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
+});
+
+export type User = z.infer<typeof UserSchema>;

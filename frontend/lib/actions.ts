@@ -394,3 +394,59 @@ export async function updateClub(data: Record<string, any>) {
     body: JSON.stringify(data),
   });
 }
+
+export async function getEventById(eventId: number): Promise<Event> {
+  const token = await getBearerToken();
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch event" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+
+  return response.json();
+}
+
+export async function getAttendanceById(eventId: number): Promise<Array<User>> {
+  const token = await getBearerToken();
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}/attendees`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch attendees" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+
+  return response.json();
+}

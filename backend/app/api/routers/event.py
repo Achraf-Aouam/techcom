@@ -132,10 +132,10 @@ def get_event_attendees(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),  # Permissions vary
 ):
-    if str(current_user.role) == str(UserRoleType.STUDENT):
+    if current_user.role == UserRoleType.STUDENT:  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view event attendees",
+            detail="Student Not authorized to view event attendees",
         )
 
     event = db.query(EventModel).filter(EventModel.id == event_id).first()
@@ -144,8 +144,9 @@ def get_event_attendees(
             status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
         )
 
-    is_admin = str(current_user.role) == UserRoleType.SAO_ADMIN
-    is_manager = str(current_user.role) == UserRoleType.CLUB_MANAGER
+    is_admin = current_user.role == UserRoleType.SAO_ADMIN
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
+
     is_event_owner = False
     club = db.query(ClubModel).filter(ClubModel.id == event.club_id).first()
     if not club:
@@ -153,11 +154,14 @@ def get_event_attendees(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
     is_event_owner = is_manager and current_user.id == club.manager_id
+    print(
+        f"is_manager: {is_manager}, current_user.id: {current_user.id}, club.manager_id: {club.manager_id}"
+    )
 
     if not (bool(is_admin) or bool(is_event_owner)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view event attendees",
+            detail="Not club owner not authorized to view event attendees",
         )
 
     attendees = (
@@ -431,8 +435,9 @@ def update_event_status_by_id(
     try:
         current_index = status_flow.index(event.status)  # type: ignore
         next_index = current_index + 1
+
         if next_index >= len(status_flow):
-            next_index = current_index - 2
+            next_index = current_index - 1
         event.status = status_flow[next_index]  # type: ignore
         db.add(event)
         db.commit()

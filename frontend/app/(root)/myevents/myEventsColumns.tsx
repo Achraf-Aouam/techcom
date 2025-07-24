@@ -179,6 +179,25 @@ export const columns: ColumnDef<Event>[] = [
 
               <DropdownMenuSeparator />
               <DropdownMenuItem>View full details</DropdownMenuItem>
+              {rowdata.status == "CURRENT" && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    (window.location.href = `/myevents/${rowdata.id}/cam`)
+                  }
+                >
+                  Track attendance
+                </DropdownMenuItem>
+              )}
+              {rowdata.status == "PAST" && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    (window.location.href = `/myevents/${rowdata.id}`)
+                  }
+                >
+                  See attendance Stats
+                </DropdownMenuItem>
+              )}
+
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => setOpenDelete(true)}
