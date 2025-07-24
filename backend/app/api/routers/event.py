@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from sqlalchemy import text
 
 from app.db import get_db
 from app.model.model import (
@@ -154,9 +155,6 @@ def get_event_attendees(
             status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
         )
     is_event_owner = is_manager and current_user.id == club.manager_id
-    print(
-        f"is_manager: {is_manager}, current_user.id: {current_user.id}, club.manager_id: {club.manager_id}"
-    )
 
     if not (bool(is_admin) or bool(is_event_owner)):
         raise HTTPException(
@@ -486,3 +484,87 @@ def review_event(
     db.commit()
     db.refresh(event)
     return {"detail": f"Event status updated to {event.status}"}
+
+
+@router.get("/{event_id}/stats")
+def get_event_stats(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    if current_user.role == UserRoleType.STUDENT:  # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Student Not authorized to view event attendees",
+        )
+
+    event = db.query(EventModel).filter(EventModel.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
+
+    is_admin = current_user.role == UserRoleType.SAO_ADMIN
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
+
+    is_event_owner = False
+    club = db.query(ClubModel).filter(ClubModel.id == event.club_id).first()
+    if not club:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
+        )
+    is_event_owner = is_manager and current_user.id == club.manager_id
+
+    if not (bool(is_admin) or bool(is_event_owner)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not club owner not authorized to view event attendees",
+        )
+
+    # 1. Total attendance
+    total_attendance = db.execute(
+        text("SELECT COUNT(*) FROM event_attendance WHERE event_id = :event_id"),
+        {"event_id": event_id},
+    ).scalar()
+
+    # 2. Attendance rate
+    total_users = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
+    attendance_rate = total_attendance / total_users if total_users else 0
+
+    # 3. Member attendance rate
+    total_members = db.execute(
+        text("SELECT COUNT(*) FROM club_memberships WHERE club_id = :club_id"),
+        {"club_id": club.id},
+    ).scalar()
+    member_attendance = db.execute(
+        text(
+            """
+        SELECT COUNT(*) FROM event_attendance ea
+        JOIN club_memberships cm ON ea.user_id = cm.user_id
+        WHERE ea.event_id = :event_id AND cm.club_id = :club_id
+        """
+        ),
+        {"event_id": event_id, "club_id": club.id},
+    ).scalar()
+    member_attendance_rate = member_attendance / total_members if total_members else 0
+
+    # 4. Non-member attendees
+    non_member_attendance = db.execute(
+        text(
+            """
+        SELECT COUNT(*) FROM event_attendance ea
+        WHERE ea.event_id = :event_id
+        AND ea.user_id NOT IN (
+            SELECT user_id FROM club_memberships WHERE club_id = :club_id
+        )
+        """
+        ),
+        {"event_id": event_id, "club_id": club.id},
+    ).scalar()
+
+    return {
+        "total_attendance": total_attendance,
+        "attendance_rate": attendance_rate,
+        "member_attendance_rate": member_attendance_rate,
+        "non_member_attendance": non_member_attendance,
+    }

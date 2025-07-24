@@ -450,3 +450,33 @@ export async function getAttendanceById(eventId: number): Promise<Array<User>> {
 
   return response.json();
 }
+
+export async function getEventStats(eventId: number): Promise<{
+  total_attendance: number;
+  attendance_rate: number;
+  member_attendance_rate: number;
+  non_member_attendance: number;
+}> {
+  const token = await getBearerToken();
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/${eventId}/stats`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch event stats" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}

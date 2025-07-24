@@ -1,7 +1,6 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Table } from "@/components/ui/table";
 import { DataTable } from "@/components/data_table";
 import { columns } from "./attendeesTablecolumns";
 import { Event } from "@/lib/schemas.server";
@@ -11,11 +10,18 @@ import { User } from "@/lib/schemas.client";
 interface EventDetailsPageProps {
   eventData: Event;
   attendanceData: User[];
+  stats: {
+    total_attendance: number;
+    attendance_rate: number;
+    member_attendance_rate: number;
+    non_member_attendance: number;
+  };
 }
 
 export default function EventDetailsPage({
   eventData,
   attendanceData,
+  stats,
 }: EventDetailsPageProps) {
   return (
     <div className="p-6 space-y-8">
@@ -27,7 +33,7 @@ export default function EventDetailsPage({
             className="w-32 h-32 object-cover rounded-lg border"
           />
         )}
-        <div className="flex-1">
+        <div className="flex-1 w-full">
           <h2 className="text-2xl font-bold mb-2">{eventData.name}</h2>
           <div className="mb-2 text-gray-600">
             {eventData.description || "No description"}
@@ -48,11 +54,35 @@ export default function EventDetailsPage({
               ? new Date(eventData.start_time).toLocaleString()
               : "N/A"}
           </div>
-          <div>
+          <div className="mb-2">
             <span className="font-semibold">End:</span>{" "}
             {eventData.end_time
               ? new Date(eventData.end_time).toLocaleString()
               : "N/A"}
+          </div>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-500">Total Attendance</div>
+              <div className="text-lg font-bold">{stats.total_attendance}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-500">Attendance Rate</div>
+              <div className="text-lg font-bold">{stats.attendance_rate}%</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-500">
+                Member Attendance Rate
+              </div>
+              <div className="text-lg font-bold">
+                {stats.member_attendance_rate}%
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-500">Non-Member Attendance</div>
+              <div className="text-lg font-bold">
+                {stats.non_member_attendance}
+              </div>
+            </div>
           </div>
         </div>
       </Card>
