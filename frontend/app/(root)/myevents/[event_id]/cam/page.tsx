@@ -1,7 +1,6 @@
+"use client";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-
-("use client");
 
 export default function EventCamPage() {
   const { event_id } = useParams<{ event_id: string }>();

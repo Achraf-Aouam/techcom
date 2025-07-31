@@ -1,7 +1,12 @@
+"use client";
 import { Club } from "@/lib/schemas.server";
-import { FunctionComponent } from "react";
+import { FunctionComponent, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReusableDialog } from "@/components/reusableDialog";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
+import EditClubForm from "@/components/editClubForm";
+import { useRouter } from "next/navigation";
 
 interface MyClubViewprops {
   myClub: Club;
@@ -13,6 +18,14 @@ interface MyClubViewprops {
 }
 
 const MyClubView: FunctionComponent<MyClubViewprops> = ({ myClub, stats }) => {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const router = useRouter();
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    router.refresh(); // Refresh the page to show updated data
+  };
+
   const displayStats = [
     { label: "Events", value: stats.total_events },
     { label: "Members", value: stats.total_members },
@@ -41,7 +54,23 @@ const MyClubView: FunctionComponent<MyClubViewprops> = ({ myClub, stats }) => {
             />
           </ReusableDialog>
           <div className="flex-1 flex flex-col gap-2">
-            <h1 className="text-3xl font-bold">{myClub.name}</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold">{myClub.name}</h1>
+              <ReusableDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Club
+                  </Button>
+                }
+                title="Edit Club"
+                contentClassName="max-w-md"
+              >
+                <EditClubForm club={myClub} onSuccess={handleEditSuccess} />
+              </ReusableDialog>
+            </div>
             <p className="text-muted-foreground">
               {myClub.description || "No description provided."}
             </p>

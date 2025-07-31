@@ -31,6 +31,14 @@ export const ClubCreateSchema = z.object({
 
 export type ClubCreateType = z.infer<typeof ClubCreateSchema>;
 
+export const ClubUpdateSchema = z.object({
+  description: z.string().optional(),
+  color_code: z.string().optional(),
+  tempFile: z.instanceof(FileList).optional().nullable(),
+});
+
+export type ClubUpdateType = z.infer<typeof ClubUpdateSchema>;
+
 export type Event = {
   id: number;
   name: string;

@@ -384,20 +384,37 @@ export async function adminEventReview(eventId: number, approve: boolean) {
   return response.json();
 }
 
-export async function updateClub(data: Record<string, any>) {
+export async function updateClub(data: Record<string, any>, clubId: number) {
   const token = await getBearerToken();
   if (!token) {
-    return [];
+    throw new Error("Authentication required.");
   }
 
-  const response = await fetch(``, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-  });
+  // Clean the data to remove null or empty values
+  const cleanedData: Record<string, any> = {};
+  for (const key in data) {
+    if (data[key] !== null && data[key] !== "") {
+      cleanedData[key] = data[key];
+    }
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs/${clubId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(cleanedData),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to update club: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 export async function getEventById(eventId: number): Promise<Event> {
