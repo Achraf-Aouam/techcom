@@ -71,3 +71,15 @@ export type Event = {
   end_time: string | undefined;
   club_id: number;
 };
+
+export type Club = {
+  id: number;
+  name: string;
+  description?: string;
+  image_url?: string;
+  color_code?: string;
+  is_active?: boolean;
+  manager_id?: number;
+  created_at: string;
+  updated_at: string;
+};

@@ -6,6 +6,7 @@ import { columns } from "./attendeesTablecolumns";
 import { Event } from "@/lib/schemas.server";
 import { Button } from "@/components/ui/button";
 import { User } from "@/lib/schemas.client";
+import { ReusableDialog } from "./reusableDialog";
 
 interface EventDetailsPageProps {
   eventData: Event;
@@ -27,11 +28,22 @@ export default function EventDetailsPage({
     <div className="p-6 space-y-8">
       <Card className="p-6 flex flex-col md:flex-row items-center gap-6 shadow-lg">
         {eventData.image_url && (
-          <img
-            src={eventData.image_url}
-            alt={eventData.name}
-            className="w-32 h-32 object-cover rounded-lg border"
-          />
+          <ReusableDialog
+            title="Image Preview"
+            trigger={
+              <img
+                src={eventData.image_url}
+                alt={eventData.name}
+                className="w-32 h-32 object-cover rounded-lg border"
+              />
+            }
+          >
+            <img
+              src={eventData.image_url}
+              alt={eventData.name}
+              className="w-full h-full  rounded-lg border"
+            />
+          </ReusableDialog>
         )}
         <div className="flex-1 w-full">
           <h2 className="text-2xl font-bold mb-2">{eventData.name}</h2>
@@ -61,24 +73,22 @@ export default function EventDetailsPage({
               : "N/A"}
           </div>
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <div className="text-sm text-gray-500">Total Attendance</div>
+            <div className="border-2 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-50">Total Attendance</div>
               <div className="text-lg font-bold">{stats.total_attendance}</div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <div className="text-sm text-gray-500">Attendance Rate</div>
+            <div className="border-2 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-50">Attendance Rate</div>
               <div className="text-lg font-bold">{stats.attendance_rate}%</div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <div className="text-sm text-gray-500">
-                Member Attendance Rate
-              </div>
+            <div className=" border-2 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-50">Member Attendance Rate</div>
               <div className="text-lg font-bold">
                 {stats.member_attendance_rate}%
               </div>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <div className="text-sm text-gray-500">Non-Member Attendance</div>
+            <div className="border-2 rounded-lg p-3 text-center">
+              <div className="text-sm text-gray-50">Non-Member Attendance</div>
               <div className="text-lg font-bold">
                 {stats.non_member_attendance}
               </div>

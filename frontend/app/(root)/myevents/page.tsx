@@ -8,13 +8,11 @@ import { getManagedClubEvents } from "@/lib/actions";
 
 export default async function myEventsPage() {
   const data: Array<Event> = await getManagedClubEvents();
-  console.log(data);
 
   return (
     <div className="p-4">
       <div className="pt-3 justify-end pr-8 pl-8">
         <ReusableDialog trigger={<CreateButton />} title="Create New Event">
-          {/* <ClubForm /> */}
           <EventForm />
         </ReusableDialog>
       </div>

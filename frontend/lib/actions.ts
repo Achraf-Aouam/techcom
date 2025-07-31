@@ -1,7 +1,12 @@
-// lib/actions.ts
 "use server";
 
-import { LoginSchema, RegisterInput, User, Event } from "./schemas.server";
+import {
+  LoginSchema,
+  RegisterInput,
+  User,
+  Event,
+  Club,
+} from "./schemas.server";
 
 import { createSession, getDecodedToken } from "./session";
 import { getBearerToken } from "@/lib/session";
@@ -316,7 +321,7 @@ export async function DeleteEvent(eventId: Number) {
   return { success: true };
 }
 
-export async function getAdminEvents(
+export async function getEvents(
   params?: Record<string, string | number | Array<any>>
 ) {
   const token = await getBearerToken();
@@ -478,5 +483,64 @@ export async function getEventStats(eventId: number): Promise<{
       message: errorData.detail || `HTTP error ${response.status}`,
     };
   }
+  return response.json();
+}
+
+export async function getmyclub(): Promise<Club> {
+  const token = await getBearerToken();
+  const decodedToken = await getDecodedToken();
+
+  if (!token || !decodedToken) {
+    throw new Error("Authentication required.");
+  }
+  if (!decodedToken.managed_club) {
+    throw new Error("Needs to be a manager");
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs/${decodedToken.managed_club}`
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch event stats" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}
+
+export async function getClubStatsById(clubId: number): Promise<{
+  total_events: number;
+  total_members: number;
+  avg_attendance_per_event: number;
+}> {
+  const token = await getBearerToken();
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs/${clubId}/stats`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch club stats" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+
   return response.json();
 }

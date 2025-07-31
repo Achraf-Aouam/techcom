@@ -2,16 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-export function MainNav({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+export function MainNav({ className }: React.HTMLAttributes<HTMLDivElement>) {
   const { user } = useAuth();
   const pathname = usePathname();
-  //   const params = useParams();
 
   const setRoutes = () => {
     if (user?.role === "CLUB_MANAGER") {

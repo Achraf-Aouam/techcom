@@ -55,3 +55,15 @@ export const UserSchema = z.object({
 });
 
 export type User = z.infer<typeof UserSchema>;
+
+export type Club = {
+  id: number;
+  name: string;
+  description?: string;
+  image_url?: string;
+  color_code?: string;
+  is_active?: boolean;
+  manager_id?: number;
+  created_at: string;
+  updated_at: string;
+};
