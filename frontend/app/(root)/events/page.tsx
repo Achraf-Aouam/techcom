@@ -3,6 +3,7 @@ import { DataTable } from "./data_table";
 import { columns } from "./adminEventsColumns";
 import { getEvents } from "@/lib/actions";
 import { useAuth } from "@/context/AuthContext";
+import EventsDisplay from "@/components/eventsDisplay";
 
 export default async function eventsPage() {
   const { user } = useAuth();
@@ -16,7 +17,11 @@ export default async function eventsPage() {
   return (
     <div className="p-4">
       <div className="container mx-auto py-10">
-        {is_admin ? <DataTable columns={columns} data={data} /> : null}
+        {is_admin ? (
+          <DataTable columns={columns} data={data} />
+        ) : (
+          <EventsDisplay data={data} />
+        )}
       </div>
     </div>
   );
