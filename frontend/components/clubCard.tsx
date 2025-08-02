@@ -12,9 +12,9 @@ import {
 
 interface ClubCardData {
   name: string;
-  description: string;
-  image_url: string;
-  color_code: string;
+  description?: string;
+  image_url?: string;
+  color_code?: string;
 }
 
 export default function ClubCard(data: ClubCardData) {

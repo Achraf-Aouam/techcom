@@ -2,12 +2,12 @@ import { Event } from "@/lib/schemas.server";
 import { DataTable } from "./data_table";
 import { columns } from "./adminEventsColumns";
 import { getEvents } from "@/lib/actions";
-import { useAuth } from "@/context/AuthContext";
+import { getDecodedToken } from "@/lib/session";
 import EventsDisplay from "@/components/eventsDisplay";
 
 export default async function eventsPage() {
-  const { user } = useAuth();
-  const is_admin = user?.role === "SAO_ADMIN";
+  const decodedToken = await getDecodedToken();
+  const is_admin = decodedToken?.roles === "SAO_ADMIN";
   const data: Array<Event> = is_admin
     ? await getEvents({
         status_filter: "PENDING",

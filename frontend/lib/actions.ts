@@ -561,3 +561,32 @@ export async function getClubStatsById(clubId: number): Promise<{
 
   return response.json();
 }
+
+// Fetch clubs with optional params (for admin/student separation)
+export async function getClubs(
+  params?: Record<string, string | number | boolean>
+): Promise<Club[]> {
+  let query = "";
+  if (params && Object.keys(params).length > 0) {
+    const searchParams = new URLSearchParams();
+    for (const key in params) {
+      searchParams.append(key, String(params[key]));
+    }
+    query = `?${searchParams.toString()}`;
+  }
+  const token = await getBearerToken?.();
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs${query}`,
+    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+  );
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ detail: "Failed to fetch clubs" }));
+    throw {
+      status: response.status,
+      message: errorData.detail || `HTTP error ${response.status}`,
+    };
+  }
+  return response.json();
+}

@@ -1,29 +1,12 @@
-import ClubCard from "@/components/clubCard";
+import { getDecodedToken } from "@/lib/session";
+import dynamic from "next/dynamic";
 
-import { ReusableDialog } from "@/components/reusableDialog";
-import { CreateButton } from "@/components/createButton";
-import ClubForm from "@/components/clubForm";
+const AdminClubsView = dynamic(() => import("@/components/AdminClubsView"));
+const StudentClubsView = dynamic(() => import("@/components/StudentClubsView"));
 
-const ClubsPage = async () => {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/clubs?active_only=False`
-  );
-  const data: Array<any> = await response.json();
-  console.log(data);
-  return (
-    <div className="p-4">
-      <div className="pt-3 justify-end pr-8 pl-8">
-        <ReusableDialog trigger={<CreateButton />} title="Create a club">
-          <ClubForm />
-        </ReusableDialog>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {data.map((x) => (
-          <ClubCard key={x.id} {...x} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-export default ClubsPage;
+export default async function ClubsPage() {
+  const decodedToken = await getDecodedToken();
+  const is_admin = decodedToken?.roles === "SAO_ADMIN";
+  // You can add more role checks if needed
+  return is_admin ? <AdminClubsView /> : <StudentClubsView />;
+}
