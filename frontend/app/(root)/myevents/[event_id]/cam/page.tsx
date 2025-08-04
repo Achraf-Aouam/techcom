@@ -45,12 +45,13 @@ export default function AlternativeAttendancePage({
   const [testMode, setTestMode] = useState(true); // Set to false when you have your backend ready
   const [error, setError] = useState<string>("");
   const [eventId, setEventId] = useState<string>("");
+  const [multiplePersonsDetected, setMultiplePersonsDetected] = useState(false);
 
   // Tracking configuration
-  const STABILITY_THRESHOLD = 8; // Requires 8 stable frames (~1.2 seconds at 150ms intervals)
-  const COOLDOWN_PERIOD = 10000; // 10 seconds cooldown after processing
-  const IOU_THRESHOLD = 0.4; // Intersection over Union threshold for matching
-  const MAX_ABSENCE_TIME = 2000; // Remove faces that disappear for more than 2 seconds
+  const STABILITY_THRESHOLD = 12; // Requires 8 stable frames (~1.2 seconds at 150ms intervals)
+  const COOLDOWN_PERIOD = 5000; // 10 seconds cooldown after processing
+  const IOU_THRESHOLD = 0.8; // Intersection over Union threshold for matching
+  const MAX_ABSENCE_TIME = 1000; // Remove faces that disappear for more than 2 seconds
 
   // Camera configuration - simplified for laptop webcam only
   const videoConstraints = {
@@ -292,6 +293,50 @@ export default function AlternativeAttendancePage({
         },
       });
 
+      // Check if multiple people are detected
+      if (result.faceCount > 1) {
+        console.log(
+          `⚠️ Multiple people detected (${result.faceCount}). Clearing tracking.`
+        );
+
+        // Clear all tracking data
+        trackedFacesRef.current = [];
+        setTrackedFaces([]);
+        setFaceDetected(false);
+        setDetectionCount(0);
+        setMultiplePersonsDetected(true);
+
+        // Clear the canvas and just show the video
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Always mirror for front camera (user mode)
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+          ctx.restore();
+
+          // Draw warning message on canvas
+          ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
+          ctx.fillRect(0, 0, canvas.width, 80);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "bold 24px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("⚠️ ONE PERSON AT A TIME PLEASE", canvas.width / 2, 35);
+          ctx.font = "16px Arial";
+          ctx.fillText(
+            `${result.faceCount} people detected - Please ensure only one person is visible`,
+            canvas.width / 2,
+            60
+          );
+        }
+
+        return;
+      } else {
+        // Reset multiple persons warning if only 0 or 1 person detected
+        setMultiplePersonsDetected(false);
+      }
+
       // Update both ref and state
       trackedFacesRef.current = result.trackedFaces;
       setTrackedFaces(result.trackedFaces);
@@ -333,6 +378,7 @@ export default function AlternativeAttendancePage({
       setFaceDetected(false);
       setTrackedFaces([]); // Clear tracked faces when stopping camera
       trackedFacesRef.current = []; // Also clear the ref
+      setMultiplePersonsDetected(false); // Clear multiple persons warning
       stopFaceDetection();
     } else {
       setIsCameraActive(true);
@@ -345,6 +391,7 @@ export default function AlternativeAttendancePage({
     setProcessedCount(0);
     setTrackedFaces([]);
     trackedFacesRef.current = []; // Also clear the ref
+    setMultiplePersonsDetected(false); // Clear multiple persons warning
   };
 
   // Cleanup on unmount
@@ -391,6 +438,15 @@ export default function AlternativeAttendancePage({
         </Alert>
       )}
 
+      {multiplePersonsDetected && (
+        <Alert variant="destructive" className="border-red-500 bg-red-50">
+          <AlertDescription className="text-red-800 font-semibold">
+            ⚠️ Multiple people detected! Please ensure only ONE person is
+            visible in the camera for attendance tracking to work properly.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Camera Feed */}
         <div className="lg:col-span-2">
@@ -425,11 +481,15 @@ export default function AlternativeAttendancePage({
                     />
 
                     {/* Detection status overlay */}
-                    {faceDetected && (
+                    {multiplePersonsDetected ? (
+                      <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium animate-pulse">
+                        ⚠️ Multiple People - Please show only ONE person
+                      </div>
+                    ) : faceDetected ? (
                       <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium animate-pulse">
                         👤 Person Detected
                       </div>
-                    )}
+                    ) : null}
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -524,17 +584,25 @@ export default function AlternativeAttendancePage({
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-2 h-2 rounded-full ${
-                        faceDetected
+                        multiplePersonsDetected
+                          ? "bg-red-500 animate-pulse"
+                          : faceDetected
                           ? "bg-green-500 animate-pulse"
                           : "bg-gray-400"
                       }`}
                     />
                     <span
                       className={`font-medium text-sm ${
-                        faceDetected ? "text-green-600" : "text-gray-600"
+                        multiplePersonsDetected
+                          ? "text-red-600"
+                          : faceDetected
+                          ? "text-green-600"
+                          : "text-gray-600"
                       }`}
                     >
-                      {detectionCount}
+                      {multiplePersonsDetected
+                        ? `${detectionCount} (Too Many!)`
+                        : detectionCount}
                     </span>
                   </div>
                 </div>
@@ -624,13 +692,20 @@ export default function AlternativeAttendancePage({
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
+                <p className="font-semibold text-red-600">
+                  ⚠️ ONE PERSON AT A TIME ONLY
+                </p>
                 <p>1. 📹 Click "Start Camera" to begin</p>
-                <p>2. 👤 Position face in front of camera</p>
+                <p>2. 👤 Position ONLY ONE person in front of camera</p>
                 <p>3. 🟡 Yellow box appears (tracking)</p>
                 <p>4. 🟢 Green box means confirmed</p>
                 <p>5. 🔵 Blue box means sent to backend</p>
                 <p>6. Check "Sent to Backend" counter</p>
                 <p>7. 🔄 Reset clears all tracking data</p>
+                <p className="text-red-600 text-xs mt-2">
+                  📢 If multiple people are detected, tracking stops until only
+                  one person remains visible.
+                </p>
               </div>
             </CardContent>
           </Card>
