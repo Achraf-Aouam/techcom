@@ -16,6 +16,15 @@ interface Detection {
   probability: number;
 }
 
+interface TrackedFace {
+  id: string;
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
+  stability: number; // How many consecutive frames it's been seen
+  lastSeen: number; // Timestamp
+  status: "tracking" | "confirmed" | "processed" | "cooldown";
+  processedAt?: number; // When it was processed for cooldown tracking
+}
+
 export default function AlternativeAttendancePage({
   params,
 }: {
@@ -24,14 +33,24 @@ export default function AlternativeAttendancePage({
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const trackedFacesRef = useRef<TrackedFace[]>([]);
 
   const [model, setModel] = useState<blazeface.BlazeFaceModel | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [detectionCount, setDetectionCount] = useState(0);
+  const [trackedFaces, setTrackedFaces] = useState<TrackedFace[]>([]);
+  const [processedCount, setProcessedCount] = useState(0); // Count of people sent to backend
+  const [testMode, setTestMode] = useState(true); // Set to false when you have your backend ready
   const [error, setError] = useState<string>("");
   const [eventId, setEventId] = useState<string>("");
+
+  // Tracking configuration
+  const STABILITY_THRESHOLD = 8; // Requires 8 stable frames (~1.2 seconds at 150ms intervals)
+  const COOLDOWN_PERIOD = 10000; // 10 seconds cooldown after processing
+  const IOU_THRESHOLD = 0.4; // Intersection over Union threshold for matching
+  const MAX_ABSENCE_TIME = 2000; // Remove faces that disappear for more than 2 seconds
 
   // Camera configuration - simplified for laptop webcam only
   const videoConstraints = {
@@ -39,6 +58,140 @@ export default function AlternativeAttendancePage({
     height: 480,
     facingMode: "user", // Always use front camera for laptop
   };
+
+  // Helper function to calculate Intersection over Union (IoU) for bounding box matching
+  const calculateIoU = useCallback((boxA: number[], boxB: number[]): number => {
+    const [ax1, ay1, ax2, ay2] = boxA;
+    const [bx1, by1, bx2, by2] = boxB;
+
+    const x_inter1 = Math.max(ax1, bx1);
+    const y_inter1 = Math.max(ay1, by1);
+    const x_inter2 = Math.min(ax2, bx2);
+    const y_inter2 = Math.min(ay2, by2);
+
+    const inter_width = Math.max(0, x_inter2 - x_inter1);
+    const inter_height = Math.max(0, y_inter2 - y_inter1);
+    const inter_area = inter_width * inter_height;
+
+    const boxA_area = (ax2 - ax1) * (ay2 - ay1);
+    const boxB_area = (bx2 - bx1) * (by2 - by1);
+
+    const union_area = boxA_area + boxB_area - inter_area;
+
+    return union_area > 0 ? inter_area / union_area : 0;
+  }, []);
+
+  // Helper function to crop face from video and convert to blob for backend
+  const cropFaceImage = useCallback(
+    async (bbox: number[], video: HTMLVideoElement): Promise<Blob | null> => {
+      try {
+        const [x1, y1, x2, y2] = bbox;
+        const width = x2 - x1;
+        const height = y2 - y1;
+
+        // Create a temporary canvas to crop the face
+        const tempCanvas = document.createElement("canvas");
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) return null;
+
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+
+        // Draw the cropped face region
+        tempCtx.drawImage(
+          video,
+          x1,
+          y1,
+          width,
+          height, // Source rectangle
+          0,
+          0,
+          width,
+          height // Destination rectangle
+        );
+
+        // Convert to blob
+        return new Promise((resolve) => {
+          tempCanvas.toBlob(
+            (blob) => {
+              resolve(blob);
+            },
+            "image/jpeg",
+            0.8
+          );
+        });
+      } catch (error) {
+        console.error("❌ Error cropping face:", error);
+        return null;
+      }
+    },
+    []
+  );
+
+  // Function to send face to backend for processing
+  const processFaceWithBackend = useCallback(
+    async (faceId: string, bbox: number[]) => {
+      if (!webcamRef.current?.video) return;
+
+      try {
+        console.log(`🚀 Processing face ${faceId} with backend...`);
+
+        if (testMode) {
+          // Test mode - simulate backend request
+          console.log(
+            `🧪 TEST MODE: Simulating backend request for face ${faceId}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+          console.log(`✅ TEST: Face ${faceId} processed successfully`);
+          setProcessedCount((prev) => prev + 1);
+          return;
+        }
+
+        const faceBlob = await cropFaceImage(bbox, webcamRef.current.video);
+        if (!faceBlob) {
+          console.error("❌ Failed to crop face image");
+          return;
+        }
+
+        // Create FormData for the API request
+        const formData = new FormData();
+        formData.append("image", faceBlob, "face.jpg");
+        formData.append("event_id", eventId);
+
+        // TODO: Replace with your actual FastAPI backend endpoint
+        // Example: const response = await fetch('http://localhost:8000/api/attendance/process', {
+        const response = await fetch("/api/process-attendance", {
+          method: "POST",
+          body: formData,
+          // Add any required headers for your FastAPI backend
+          // headers: {
+          //   'Authorization': `Bearer ${token}`, // if you need auth
+          // },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Face ${faceId} processed successfully:`, result);
+          setProcessedCount((prev) => prev + 1);
+
+          // You can handle the response here, e.g.:
+          // - Show success message
+          // - Update attendance list
+          // - Handle recognition results
+        } else {
+          console.error(
+            `❌ Backend request failed for face ${faceId}:`,
+            response.statusText
+          );
+          // Handle error case - maybe show a toast notification
+        }
+      } catch (error) {
+        console.error(`❌ Error processing face ${faceId}:`, error);
+        // Handle network errors
+      }
+    },
+    [eventId, cropFaceImage, testMode]
+  );
 
   // Await params on mount
   useEffect(() => {
@@ -108,19 +261,9 @@ export default function AlternativeAttendancePage({
     setIsCameraActive(false);
   }, []);
 
-  // Function to detect faces (delegated to lib/faceDetection)
+  // Function to detect faces with tracking logic
   const detectFaces = useCallback(async () => {
-    console.log("🔍 detectFaces called");
-    console.log("🤖 Model exists:", !!model);
-    console.log("📷 Webcam ref exists:", !!webcamRef.current);
-    console.log("🖼️ Canvas ref exists:", !!canvasRef.current);
-
     if (!model || !webcamRef.current || !canvasRef.current) {
-      if (!model) console.log("❌ Early return - missing dependency: model");
-      if (!webcamRef.current)
-        console.log("❌ Early return - missing dependency: webcamRef.current");
-      if (!canvasRef.current)
-        console.log("❌ Early return - missing dependency: canvasRef.current");
       return;
     }
 
@@ -128,52 +271,50 @@ export default function AlternativeAttendancePage({
     const video = webcam.video;
     const canvas = canvasRef.current;
 
-    console.log("🎥 Video element:", !!video);
-    console.log("🖼️ Canvas element:", !!canvas);
-
-    if (!video || !canvas) {
-      console.log("❌ Video or canvas is null");
+    if (!video || !canvas || video.readyState !== 4) {
       return;
     }
 
-    // Robust: Only proceed if video is actually ready (readyState 4 = HAVE_ENOUGH_DATA)
-    if (video.readyState !== 4) {
-      console.log("⏳ Video not ready, readyState:", video.readyState);
-      return;
-    }
+    try {
+      // Get face detections from the updated detection function using ref for current tracked faces
+      const result = await detectFacesInVideo({
+        model,
+        video,
+        canvas,
+        facingMode: "user",
+        trackedFaces: trackedFacesRef.current,
+        onFaceConfirmed: processFaceWithBackend,
+        config: {
+          stabilityThreshold: STABILITY_THRESHOLD,
+          iouThreshold: IOU_THRESHOLD,
+          cooldownPeriod: COOLDOWN_PERIOD,
+          maxAbsenceTime: MAX_ABSENCE_TIME,
+        },
+      });
 
-    console.log("📹 Video ready state:", video.readyState);
-    console.log(
-      "📏 Video dimensions:",
-      video.videoWidth,
-      "x",
-      video.videoHeight
-    );
+      // Update both ref and state
+      trackedFacesRef.current = result.trackedFaces;
+      setTrackedFaces(result.trackedFaces);
 
-    const result = await detectFacesInVideo({
-      model,
-      video,
-      canvas,
-      facingMode: "user", // Always use front camera for laptop
-    });
-
-    console.log("🎯 Detection result:", result);
-    const currentlyDetected = result.faceCount > 0;
-
-    // Update face detection status
-    if (currentlyDetected !== faceDetected) {
+      // Update UI state
+      const currentlyDetected = result.faceCount > 0;
       setFaceDetected(currentlyDetected);
-      if (currentlyDetected) {
-        setDetectionCount((prev) => prev + 1);
-        console.log(`👤 ${result.faceCount} person(s) detected in frame`);
-      } else {
-        console.log("👻 No person in frame");
+      setDetectionCount(result.faceCount);
+
+      if (result.error) {
+        console.error("❌ Error during face detection:", result.error);
       }
+    } catch (error) {
+      console.error("❌ Error in detectFaces:", error);
     }
-    if (result.error) {
-      console.error("❌ Error during face detection:", result.error);
-    }
-  }, [model, faceDetected]);
+  }, [
+    model,
+    processFaceWithBackend,
+    STABILITY_THRESHOLD,
+    IOU_THRESHOLD,
+    COOLDOWN_PERIOD,
+    MAX_ABSENCE_TIME,
+  ]);
 
   // ...existing code...
 
@@ -190,15 +331,20 @@ export default function AlternativeAttendancePage({
     if (isCameraActive) {
       setIsCameraActive(false);
       setFaceDetected(false);
+      setTrackedFaces([]); // Clear tracked faces when stopping camera
+      trackedFacesRef.current = []; // Also clear the ref
       stopFaceDetection();
     } else {
       setIsCameraActive(true);
     }
   };
 
-  // Reset detection count
+  // Reset detection count and tracking
   const resetCount = () => {
     setDetectionCount(0);
+    setProcessedCount(0);
+    setTrackedFaces([]);
+    trackedFacesRef.current = []; // Also clear the ref
   };
 
   // Cleanup on unmount
@@ -212,15 +358,26 @@ export default function AlternativeAttendancePage({
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Event Attendance (Alternative)</h1>
+          <h1 className="text-3xl font-bold">Smart Attendance Tracking</h1>
           <p className="text-muted-foreground">
-            Event ID: {eventId} • Using react-webcam
+            Event ID: {eventId} • Face tracking with{" "}
+            {testMode ? "simulated" : "live"} backend
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            <span className="text-sm">Detections: {detectionCount}</span>
+            <span className="text-sm">Active: {detectionCount}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-blue-600">
+              Processed: {processedCount}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Tracking: {trackedFaces.length}
+            </span>
           </div>
           <Button onClick={resetCount} variant="outline" size="sm">
             <RotateCcw className="h-4 w-4" />
@@ -299,7 +456,21 @@ export default function AlternativeAttendancePage({
                     ? "Stop Camera"
                     : "Start Camera"}
                 </Button>
+                <Button
+                  onClick={() => setTestMode(!testMode)}
+                  variant={testMode ? "default" : "outline"}
+                  size="sm"
+                >
+                  {testMode ? "Test Mode" : "Live Mode"}
+                </Button>
               </div>
+
+              {testMode && (
+                <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+                  🧪 Test Mode: Backend requests are simulated. Set testMode to
+                  false when your FastAPI backend is ready.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -349,7 +520,7 @@ export default function AlternativeAttendancePage({
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span>Face Detected:</span>
+                  <span>Faces in Frame:</span>
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -363,18 +534,54 @@ export default function AlternativeAttendancePage({
                         faceDetected ? "text-green-600" : "text-gray-600"
                       }`}
                     >
-                      {faceDetected ? "Yes" : "No"}
+                      {detectionCount}
                     </span>
                   </div>
                 </div>
 
-                <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span>Tracked Faces:</span>
+                  <span className="font-medium text-sm text-yellow-600">
+                    {trackedFaces.length}
+                  </span>
+                </div>
+
+                <div className="border-t pt-2 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span>Total Detections:</span>
+                    <span>Sent to Backend:</span>
                     <span className="font-bold text-lg text-blue-600">
-                      {detectionCount}
+                      {processedCount}
                     </span>
                   </div>
+
+                  {/* Show status of tracked faces */}
+                  {trackedFaces.length > 0 && (
+                    <div className="text-xs space-y-1">
+                      {trackedFaces.map((face) => (
+                        <div
+                          key={face.id}
+                          className="flex justify-between items-center"
+                        >
+                          <span className="font-mono">{face.id.slice(-8)}</span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              face.status === "tracking"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : face.status === "confirmed"
+                                ? "bg-green-100 text-green-800"
+                                : face.status === "processed"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-orange-100 text-orange-800"
+                            }`}
+                          >
+                            {face.status === "tracking"
+                              ? `${face.stability}/${STABILITY_THRESHOLD}`
+                              : face.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -382,26 +589,29 @@ export default function AlternativeAttendancePage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Key Differences</CardTitle>
+              <CardTitle>Smart Tracking Features</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
                 <div className="bg-green-50 p-2 rounded">
-                  <p className="font-medium text-green-800">✅ Advantages:</p>
+                  <p className="font-medium text-green-800">✨ New Features:</p>
                   <ul className="list-disc list-inside text-green-700 mt-1">
-                    <li>Simpler camera setup</li>
-                    <li>Built-in error handling</li>
-                    <li>Optimized for laptop webcam</li>
-                    <li>Automatic mirroring</li>
+                    <li>Stateful face tracking</li>
+                    <li>
+                      Stability confirmation ({STABILITY_THRESHOLD} frames)
+                    </li>
+                    <li>One request per person</li>
+                    <li>10-second cooldown period</li>
+                    <li>Automatic face matching</li>
                   </ul>
                 </div>
                 <div className="bg-blue-50 p-2 rounded">
-                  <p className="font-medium text-blue-800">📋 Features:</p>
+                  <p className="font-medium text-blue-800">🎯 How it works:</p>
                   <ul className="list-disc list-inside text-blue-700 mt-1">
-                    <li>One-click camera toggle</li>
-                    <li>Real-time face detection</li>
-                    <li>Visual status indicators</li>
-                    <li>Detection counter</li>
+                    <li>Yellow box: Tracking face</li>
+                    <li>Green box: Confirmed face</li>
+                    <li>Blue box: Sent to backend</li>
+                    <li>Orange box: Cooldown period</li>
                   </ul>
                 </div>
               </div>
@@ -415,10 +625,12 @@ export default function AlternativeAttendancePage({
             <CardContent>
               <div className="text-sm space-y-2">
                 <p>1. 📹 Click "Start Camera" to begin</p>
-                <p>2. 👤 Position your face in front of camera</p>
-                <p>3. 🟢 Green boxes show detected faces</p>
-                <p>4. Check console for detection logs</p>
-                <p>5. 🔄 Reset counter with reset button</p>
+                <p>2. 👤 Position face in front of camera</p>
+                <p>3. 🟡 Yellow box appears (tracking)</p>
+                <p>4. 🟢 Green box means confirmed</p>
+                <p>5. 🔵 Blue box means sent to backend</p>
+                <p>6. Check "Sent to Backend" counter</p>
+                <p>7. 🔄 Reset clears all tracking data</p>
               </div>
             </CardContent>
           </Card>
