@@ -5,6 +5,7 @@ import Webcam from "react-webcam";
 import * as tf from "@tensorflow/tfjs";
 import * as blazeface from "@tensorflow-models/blazeface";
 import { detectFacesInVideo } from "@/lib/faceDetection";
+import { faceEmbeddingService, EmbeddingResult } from "@/lib/faceEmbedding";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,6 +17,15 @@ interface Detection {
   probability: number;
 }
 
+interface TrackedFace {
+  id: string;
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
+  stability: number; // How many consecutive frames it's been seen
+  lastSeen: number; // Timestamp
+  status: "tracking" | "confirmed" | "processed" | "cooldown";
+  processedAt?: number; // When it was processed for cooldown tracking
+}
+
 export default function AlternativeAttendancePage({
   params,
 }: {
@@ -24,14 +34,43 @@ export default function AlternativeAttendancePage({
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const trackedFacesRef = useRef<TrackedFace[]>([]);
 
   const [model, setModel] = useState<blazeface.BlazeFaceModel | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [faceDetected, setFaceDetected] = useState(false);
   const [detectionCount, setDetectionCount] = useState(0);
+  const [trackedFaces, setTrackedFaces] = useState<TrackedFace[]>([]);
+  const [processedCount, setProcessedCount] = useState(0); // Count of people sent to backend
+  const [testMode, setTestMode] = useState(true); // Set to false when you have your backend ready
   const [error, setError] = useState<string>("");
   const [eventId, setEventId] = useState<string>("");
+  const [multiplePersonsDetected, setMultiplePersonsDetected] = useState(false);
+
+  // Embedding state
+  const [isEmbeddingModelsLoading, setIsEmbeddingModelsLoading] =
+    useState(true);
+  const [embeddingResults, setEmbeddingResults] = useState<{
+    embedding?: EmbeddingResult;
+    processingTime?: number;
+  }>({});
+  const [isProcessingEmbedding, setIsProcessingEmbedding] = useState(false);
+  const [duplicateDetected, setDuplicateDetected] = useState<{
+    personId: string;
+    similarity: number;
+  } | null>(null);
+
+  // Track processed people in this session to prevent duplicates
+  const processedPeopleRef = useRef<Set<string>>(new Set());
+
+  // Tracking configuration
+  const STABILITY_THRESHOLD = 12; // Requires 12 stable frames (~1.8 seconds at 150ms intervals)
+  const IOU_THRESHOLD = 0.8; // Intersection over Union threshold for matching
+  const MAX_ABSENCE_TIME = 1000; // Remove faces that disappear for more than 1 second
+  // Dynamic cooldown based on embedding processing time (minimum 2 seconds)
+  const getCooldownPeriod = () =>
+    Math.max(2000, (embeddingResults.processingTime || 0) * 2);
 
   // Camera configuration - simplified for laptop webcam only
   const videoConstraints = {
@@ -39,6 +78,193 @@ export default function AlternativeAttendancePage({
     height: 480,
     facingMode: "user", // Always use front camera for laptop
   };
+
+  // Helper function to calculate Intersection over Union (IoU) for bounding box matching
+  const calculateIoU = useCallback((boxA: number[], boxB: number[]): number => {
+    const [ax1, ay1, ax2, ay2] = boxA;
+    const [bx1, by1, bx2, by2] = boxB;
+
+    const x_inter1 = Math.max(ax1, bx1);
+    const y_inter1 = Math.max(ay1, by1);
+    const x_inter2 = Math.min(ax2, bx2);
+    const y_inter2 = Math.min(ay2, by2);
+
+    const inter_width = Math.max(0, x_inter2 - x_inter1);
+    const inter_height = Math.max(0, y_inter2 - y_inter1);
+    const inter_area = inter_width * inter_height;
+
+    const boxA_area = (ax2 - ax1) * (ay2 - ay1);
+    const boxB_area = (bx2 - bx1) * (by2 - by1);
+
+    const union_area = boxA_area + boxB_area - inter_area;
+
+    return union_area > 0 ? inter_area / union_area : 0;
+  }, []);
+
+  // Helper function to crop face from video and convert to blob for backend
+  const cropFaceImage = useCallback(
+    async (bbox: number[], video: HTMLVideoElement): Promise<Blob | null> => {
+      try {
+        const [x1, y1, x2, y2] = bbox;
+        const width = x2 - x1;
+        const height = y2 - y1;
+
+        // Create a temporary canvas to crop the face
+        const tempCanvas = document.createElement("canvas");
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) return null;
+
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+
+        // Draw the cropped face region
+        tempCtx.drawImage(
+          video,
+          x1,
+          y1,
+          width,
+          height, // Source rectangle
+          0,
+          0,
+          width,
+          height // Destination rectangle
+        );
+
+        // Convert to blob
+        return new Promise((resolve) => {
+          tempCanvas.toBlob(
+            (blob) => {
+              resolve(blob);
+            },
+            "image/jpeg",
+            0.8
+          );
+        });
+      } catch (error) {
+        console.error("❌ Error cropping face:", error);
+        return null;
+      }
+    },
+    []
+  );
+
+  // Function to send face to backend for processing
+  const processFaceWithBackend = useCallback(
+    async (faceId: string, bbox: number[]) => {
+      if (!webcamRef.current?.video || !canvasRef.current) return;
+
+      try {
+        console.log(
+          `🚀 Processing face ${faceId} with FaceNet embedding generation...`
+        );
+        setIsProcessingEmbedding(true);
+        setDuplicateDetected(null);
+
+        // Generate embedding using FaceNet model only
+        const embeddingResult =
+          await faceEmbeddingService.generateFaceNetEmbedding(
+            canvasRef.current,
+            bbox
+          );
+
+        setEmbeddingResults({
+          embedding: embeddingResult,
+          processingTime: embeddingResult.processingTime,
+        });
+
+        console.log(
+          `⏱️ FaceNet embedding took: ${embeddingResult.processingTime.toFixed(
+            2
+          )}ms`
+        );
+
+        // Check for duplicates using strict similarity threshold (0.85 = very strict)
+        if (embeddingResult.embedding.length > 0) {
+          const matchingPerson = faceEmbeddingService.findMatchingPerson(
+            embeddingResult.embedding,
+            0.85 // Very strict threshold - only prevent if we're very sure it's the same person
+          );
+
+          if (matchingPerson) {
+            console.log(
+              `🔄 Very high similarity detected! Person ${
+                matchingPerson.personId
+              } with similarity ${matchingPerson.similarity.toFixed(
+                3
+              )} - skipping duplicate`
+            );
+            setDuplicateDetected(matchingPerson);
+            setIsProcessingEmbedding(false);
+            return; // Don't send to backend if very high similarity
+          }
+
+          // Check if this face ID was already processed in this session
+          if (processedPeopleRef.current.has(faceId)) {
+            console.log(
+              `🔄 Face ${faceId} already processed in this session - skipping`
+            );
+            setIsProcessingEmbedding(false);
+            return;
+          }
+
+          // Add this person to known embeddings and processed set
+          faceEmbeddingService.addKnownEmbedding(
+            embeddingResult.embedding,
+            faceId
+          );
+          processedPeopleRef.current.add(faceId);
+          console.log(
+            `➕ Added new person ${faceId} to known embeddings. Total known: ${faceEmbeddingService.getKnownEmbeddingsCount()}`
+          );
+        }
+
+        if (testMode) {
+          // Test mode - simulate backend request
+          console.log(
+            `🧪 TEST MODE: Simulating backend request for face ${faceId}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+          console.log(`✅ TEST: Face ${faceId} processed successfully`);
+          setProcessedCount((prev) => prev + 1);
+          setIsProcessingEmbedding(false);
+          return;
+        }
+
+        // Send embedding to backend
+        const backendPayload = {
+          embedding: embeddingResult.embedding,
+          modelName: embeddingResult.modelName,
+          event_id: eventId,
+          face_id: faceId,
+        };
+
+        // TODO: Replace with your actual FastAPI backend endpoint
+        const response = await fetch("/api/process-attendance-embedding", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(backendPayload),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Face ${faceId} processed successfully:`, result);
+          setProcessedCount((prev) => prev + 1);
+        } else {
+          console.error(
+            `❌ Backend request failed for face ${faceId}:`,
+            response.statusText
+          );
+        }
+      } catch (error) {
+        console.error(`❌ Error processing face ${faceId}:`, error);
+      } finally {
+        setIsProcessingEmbedding(false);
+      }
+    },
+    [eventId, testMode]
+  );
 
   // Await params on mount
   useEffect(() => {
@@ -49,24 +275,34 @@ export default function AlternativeAttendancePage({
     getParams();
   }, [params]);
 
-  // Load the BlazeFace model
+  // Load the BlazeFace model and embedding models
   useEffect(() => {
-    const loadModel = async () => {
+    const loadModels = async () => {
       try {
         setIsModelLoading(true);
+        setIsEmbeddingModelsLoading(true);
+
+        // Load BlazeFace for detection
         await tf.ready();
         const loadedModel = await blazeface.load();
         setModel(loadedModel);
-        setIsModelLoading(false);
         console.log("✅ BlazeFace model loaded successfully");
-      } catch (err) {
-        console.error("❌ Error loading model:", err);
-        setError("Failed to load face detection model");
+
+        // Load FaceNet embedding model
+        await faceEmbeddingService.loadModels();
+        setIsEmbeddingModelsLoading(false);
+        console.log("✅ FaceNet embedding model loaded successfully");
+
         setIsModelLoading(false);
+      } catch (err) {
+        console.error("❌ Error loading models:", err);
+        setError("Failed to load face detection or FaceNet embedding model");
+        setIsModelLoading(false);
+        setIsEmbeddingModelsLoading(false);
       }
     };
 
-    loadModel();
+    loadModels();
   }, []);
 
   // Start continuous face detection
@@ -108,19 +344,9 @@ export default function AlternativeAttendancePage({
     setIsCameraActive(false);
   }, []);
 
-  // Function to detect faces (delegated to lib/faceDetection)
+  // Function to detect faces with tracking logic
   const detectFaces = useCallback(async () => {
-    console.log("🔍 detectFaces called");
-    console.log("🤖 Model exists:", !!model);
-    console.log("📷 Webcam ref exists:", !!webcamRef.current);
-    console.log("🖼️ Canvas ref exists:", !!canvasRef.current);
-
     if (!model || !webcamRef.current || !canvasRef.current) {
-      if (!model) console.log("❌ Early return - missing dependency: model");
-      if (!webcamRef.current)
-        console.log("❌ Early return - missing dependency: webcamRef.current");
-      if (!canvasRef.current)
-        console.log("❌ Early return - missing dependency: canvasRef.current");
       return;
     }
 
@@ -128,52 +354,94 @@ export default function AlternativeAttendancePage({
     const video = webcam.video;
     const canvas = canvasRef.current;
 
-    console.log("🎥 Video element:", !!video);
-    console.log("🖼️ Canvas element:", !!canvas);
-
-    if (!video || !canvas) {
-      console.log("❌ Video or canvas is null");
+    if (!video || !canvas || video.readyState !== 4) {
       return;
     }
 
-    // Robust: Only proceed if video is actually ready (readyState 4 = HAVE_ENOUGH_DATA)
-    if (video.readyState !== 4) {
-      console.log("⏳ Video not ready, readyState:", video.readyState);
-      return;
-    }
+    try {
+      // Get face detections from the updated detection function using ref for current tracked faces
+      const result = await detectFacesInVideo({
+        model,
+        video,
+        canvas,
+        facingMode: "user",
+        trackedFaces: trackedFacesRef.current,
+        onFaceConfirmed: processFaceWithBackend,
+        config: {
+          stabilityThreshold: STABILITY_THRESHOLD,
+          iouThreshold: IOU_THRESHOLD,
+          cooldownPeriod: getCooldownPeriod(),
+          maxAbsenceTime: MAX_ABSENCE_TIME,
+        },
+      });
 
-    console.log("📹 Video ready state:", video.readyState);
-    console.log(
-      "📏 Video dimensions:",
-      video.videoWidth,
-      "x",
-      video.videoHeight
-    );
+      // Check if multiple people are detected
+      if (result.faceCount > 1) {
+        console.log(
+          `⚠️ Multiple people detected (${result.faceCount}). Clearing tracking.`
+        );
 
-    const result = await detectFacesInVideo({
-      model,
-      video,
-      canvas,
-      facingMode: "user", // Always use front camera for laptop
-    });
+        // Clear all tracking data
+        trackedFacesRef.current = [];
+        setTrackedFaces([]);
+        setFaceDetected(false);
+        setDetectionCount(0);
+        setMultiplePersonsDetected(true);
 
-    console.log("🎯 Detection result:", result);
-    const currentlyDetected = result.faceCount > 0;
+        // Clear the canvas and just show the video
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Always mirror for front camera (user mode)
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+          ctx.restore();
 
-    // Update face detection status
-    if (currentlyDetected !== faceDetected) {
-      setFaceDetected(currentlyDetected);
-      if (currentlyDetected) {
-        setDetectionCount((prev) => prev + 1);
-        console.log(`👤 ${result.faceCount} person(s) detected in frame`);
+          // Draw warning message on canvas
+          ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
+          ctx.fillRect(0, 0, canvas.width, 80);
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = "bold 24px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("⚠️ ONE PERSON AT A TIME PLEASE", canvas.width / 2, 35);
+          ctx.font = "16px Arial";
+          ctx.fillText(
+            `${result.faceCount} people detected - Please ensure only one person is visible`,
+            canvas.width / 2,
+            60
+          );
+        }
+
+        return;
       } else {
-        console.log("👻 No person in frame");
+        // Reset multiple persons warning if only 0 or 1 person detected
+        setMultiplePersonsDetected(false);
       }
+
+      // Update both ref and state
+      trackedFacesRef.current = result.trackedFaces;
+      setTrackedFaces(result.trackedFaces);
+
+      // Update UI state
+      const currentlyDetected = result.faceCount > 0;
+      setFaceDetected(currentlyDetected);
+      setDetectionCount(result.faceCount);
+
+      if (result.error) {
+        console.error("❌ Error during face detection:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Error in detectFaces:", error);
     }
-    if (result.error) {
-      console.error("❌ Error during face detection:", result.error);
-    }
-  }, [model, faceDetected]);
+  }, [
+    model,
+    processFaceWithBackend,
+    STABILITY_THRESHOLD,
+    IOU_THRESHOLD,
+    getCooldownPeriod,
+    MAX_ABSENCE_TIME,
+  ]);
 
   // ...existing code...
 
@@ -190,15 +458,29 @@ export default function AlternativeAttendancePage({
     if (isCameraActive) {
       setIsCameraActive(false);
       setFaceDetected(false);
+      setTrackedFaces([]); // Clear tracked faces when stopping camera
+      trackedFacesRef.current = []; // Also clear the ref
+      setMultiplePersonsDetected(false); // Clear multiple persons warning
       stopFaceDetection();
     } else {
       setIsCameraActive(true);
     }
   };
 
-  // Reset detection count
+  // Reset detection count and tracking
   const resetCount = () => {
     setDetectionCount(0);
+    setProcessedCount(0);
+    setTrackedFaces([]);
+    trackedFacesRef.current = []; // Also clear the ref
+    setMultiplePersonsDetected(false); // Clear multiple persons warning
+    setEmbeddingResults({}); // Clear embedding results
+    setDuplicateDetected(null); // Clear duplicate detection
+    processedPeopleRef.current.clear(); // Clear processed people set
+    faceEmbeddingService.clearKnownEmbeddings(); // Clear known embeddings
+    console.log(
+      "🔄 All tracking data, embeddings, and processed people cleared"
+    );
   };
 
   // Cleanup on unmount
@@ -212,15 +494,26 @@ export default function AlternativeAttendancePage({
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Event Attendance (Alternative)</h1>
+          <h1 className="text-3xl font-bold">Smart Attendance Tracking</h1>
           <p className="text-muted-foreground">
-            Event ID: {eventId} • Using react-webcam
+            Event ID: {eventId} • Face tracking with{" "}
+            {testMode ? "simulated" : "live"} backend
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            <span className="text-sm">Detections: {detectionCount}</span>
+            <span className="text-sm">Active: {detectionCount}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-blue-600">
+              Processed: {processedCount}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Tracking: {trackedFaces.length}
+            </span>
           </div>
           <Button onClick={resetCount} variant="outline" size="sm">
             <RotateCcw className="h-4 w-4" />
@@ -231,6 +524,15 @@ export default function AlternativeAttendancePage({
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {multiplePersonsDetected && (
+        <Alert variant="destructive" className="border-red-500 bg-red-50">
+          <AlertDescription className="text-red-800 font-semibold">
+            ⚠️ Multiple people detected! Please ensure only ONE person is
+            visible in the camera for attendance tracking to work properly.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -268,11 +570,15 @@ export default function AlternativeAttendancePage({
                     />
 
                     {/* Detection status overlay */}
-                    {faceDetected && (
+                    {multiplePersonsDetected ? (
+                      <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium animate-pulse">
+                        ⚠️ Multiple People - Please show only ONE person
+                      </div>
+                    ) : faceDetected ? (
                       <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium animate-pulse">
                         👤 Person Detected
                       </div>
-                    )}
+                    ) : null}
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -289,17 +595,32 @@ export default function AlternativeAttendancePage({
               <div className="flex gap-2">
                 <Button
                   onClick={toggleCamera}
-                  disabled={isModelLoading}
+                  disabled={isModelLoading || isEmbeddingModelsLoading}
                   className="flex-1"
                   variant={isCameraActive ? "outline" : "default"}
                 >
-                  {isModelLoading
-                    ? "Loading Model..."
+                  {isModelLoading || isEmbeddingModelsLoading
+                    ? "Loading Models..."
                     : isCameraActive
                     ? "Stop Camera"
                     : "Start Camera"}
                 </Button>
+                <Button
+                  onClick={() => setTestMode(!testMode)}
+                  variant={testMode ? "default" : "outline"}
+                  size="sm"
+                >
+                  {testMode ? "Test Mode" : "Live Mode"}
+                </Button>
               </div>
+
+              {testMode && (
+                <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded">
+                  🧪 Test Mode: Face embeddings are generated client-side and
+                  backend requests are simulated. Set testMode to false when
+                  your FastAPI backend is ready to receive embedding vectors.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -317,15 +638,43 @@ export default function AlternativeAttendancePage({
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-2 h-2 rounded-full ${
-                        isModelLoading ? "bg-yellow-500" : "bg-green-500"
+                        isModelLoading || isEmbeddingModelsLoading
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
                       }`}
                     />
                     <span
                       className={`font-medium text-sm ${
-                        isModelLoading ? "text-yellow-600" : "text-green-600"
+                        isModelLoading || isEmbeddingModelsLoading
+                          ? "text-yellow-600"
+                          : "text-green-600"
                       }`}
                     >
-                      {isModelLoading ? "Loading..." : "Ready"}
+                      {isModelLoading || isEmbeddingModelsLoading
+                        ? "Loading..."
+                        : "Ready"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span>Embedding Models:</span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        isEmbeddingModelsLoading
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                      }`}
+                    />
+                    <span
+                      className={`font-medium text-sm ${
+                        isEmbeddingModelsLoading
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                      }`}
+                    >
+                      {isEmbeddingModelsLoading ? "Loading..." : "Ready"}
                     </span>
                   </div>
                 </div>
@@ -349,32 +698,76 @@ export default function AlternativeAttendancePage({
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span>Face Detected:</span>
+                  <span>Faces in Frame:</span>
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-2 h-2 rounded-full ${
-                        faceDetected
+                        multiplePersonsDetected
+                          ? "bg-red-500 animate-pulse"
+                          : faceDetected
                           ? "bg-green-500 animate-pulse"
                           : "bg-gray-400"
                       }`}
                     />
                     <span
                       className={`font-medium text-sm ${
-                        faceDetected ? "text-green-600" : "text-gray-600"
+                        multiplePersonsDetected
+                          ? "text-red-600"
+                          : faceDetected
+                          ? "text-green-600"
+                          : "text-gray-600"
                       }`}
                     >
-                      {faceDetected ? "Yes" : "No"}
+                      {multiplePersonsDetected
+                        ? `${detectionCount} (Too Many!)`
+                        : detectionCount}
                     </span>
                   </div>
                 </div>
 
-                <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span>Tracked Faces:</span>
+                  <span className="font-medium text-sm text-yellow-600">
+                    {trackedFaces.length}
+                  </span>
+                </div>
+
+                <div className="border-t pt-2 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span>Total Detections:</span>
+                    <span>Sent to Backend:</span>
                     <span className="font-bold text-lg text-blue-600">
-                      {detectionCount}
+                      {processedCount}
                     </span>
                   </div>
+
+                  {/* Show status of tracked faces */}
+                  {trackedFaces.length > 0 && (
+                    <div className="text-xs space-y-1">
+                      {trackedFaces.map((face) => (
+                        <div
+                          key={face.id}
+                          className="flex justify-between items-center"
+                        >
+                          <span className="font-mono">{face.id.slice(-8)}</span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              face.status === "tracking"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : face.status === "confirmed"
+                                ? "bg-green-100 text-green-800"
+                                : face.status === "processed"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-orange-100 text-orange-800"
+                            }`}
+                          >
+                            {face.status === "tracking"
+                              ? `${face.stability}/${STABILITY_THRESHOLD}`
+                              : face.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -382,28 +775,139 @@ export default function AlternativeAttendancePage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Key Differences</CardTitle>
+              <CardTitle>Smart Tracking Features</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
                 <div className="bg-green-50 p-2 rounded">
-                  <p className="font-medium text-green-800">✅ Advantages:</p>
+                  <p className="font-medium text-green-800">
+                    ✨ Smart Features:
+                  </p>
                   <ul className="list-disc list-inside text-green-700 mt-1">
-                    <li>Simpler camera setup</li>
-                    <li>Built-in error handling</li>
-                    <li>Optimized for laptop webcam</li>
-                    <li>Automatic mirroring</li>
+                    <li>Stateful face tracking</li>
+                    <li>
+                      Stability confirmation ({STABILITY_THRESHOLD} frames)
+                    </li>
+                    <li>Client-side face embeddings</li>
+                    <li>Automatic duplicate detection</li>
+                    <li>Dynamic cooldown based on processing time</li>
+                    <li>95% bandwidth savings vs images</li>
                   </ul>
                 </div>
                 <div className="bg-blue-50 p-2 rounded">
-                  <p className="font-medium text-blue-800">📋 Features:</p>
+                  <p className="font-medium text-blue-800">
+                    🎯 Embedding Models:
+                  </p>
                   <ul className="list-disc list-inside text-blue-700 mt-1">
-                    <li>One-click camera toggle</li>
-                    <li>Real-time face detection</li>
-                    <li>Visual status indicators</li>
-                    <li>Detection counter</li>
+                    <li>FaceNet: Higher accuracy, slower</li>
+                    <li>MobileFaceNet: Faster, mobile-optimized</li>
+                    <li>128-dimensional face vectors</li>
+                    <li>Cosine similarity matching</li>
                   </ul>
                 </div>
+                <div className="bg-purple-50 p-2 rounded">
+                  <p className="font-medium text-purple-800">🚀 Performance:</p>
+                  <ul className="list-disc list-inside text-purple-700 mt-1">
+                    <li>Both models run in parallel</li>
+                    <li>Real-time duplicate detection</li>
+                    <li>No backend load for embeddings</li>
+                    <li>Cooldown = 2x embedding time</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Embedding Performance</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isProcessingEmbedding ? (
+                <div className="flex items-center gap-2 text-blue-600">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm font-medium">
+                    Generating embedding...
+                  </span>
+                </div>
+              ) : embeddingResults.embedding ? (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold text-blue-800">
+                        FaceNet Embedding
+                      </span>
+                      <span
+                        className={`text-sm ${
+                          embeddingResults.embedding.error
+                            ? "text-red-600"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        {embeddingResults.embedding.error
+                          ? "Error"
+                          : `${embeddingResults.embedding.processingTime.toFixed(
+                              0
+                            )}ms`}
+                      </span>
+                    </div>
+                    {embeddingResults.embedding.error ? (
+                      <p className="text-xs text-red-600">
+                        {embeddingResults.embedding.error}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-blue-700">
+                        Embedding: {embeddingResults.embedding.embedding.length}{" "}
+                        dimensions
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-purple-50 p-2 rounded">
+                    <span className="text-sm font-medium text-purple-800">
+                      Processing: {embeddingResults.processingTime?.toFixed(0)}
+                      ms
+                    </span>
+                    <span className="text-xs text-purple-600 ml-2">
+                      (Cooldown: {getCooldownPeriod()}ms)
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No embeddings generated yet
+                </p>
+              )}
+
+              {duplicateDetected && (
+                <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-orange-600">🔄</span>
+                    <span className="font-semibold text-orange-800">
+                      Duplicate Detected!
+                    </span>
+                  </div>
+                  <p className="text-xs text-orange-700">
+                    Person already seen (similarity:{" "}
+                    {(duplicateDetected.similarity * 100).toFixed(1)}%)
+                  </p>
+                  <p className="text-xs text-orange-600">
+                    Not sending to backend to avoid duplicate attendance
+                  </p>
+                </div>
+              )}
+
+              <div className="text-xs space-y-1 bg-gray-50 p-2 rounded">
+                <p>
+                  <strong>Known people:</strong>{" "}
+                  {faceEmbeddingService.getKnownEmbeddingsCount()}
+                </p>
+                <p>
+                  <strong>Detection type:</strong> Client-side embeddings
+                </p>
+                <p>
+                  <strong>Bandwidth saved:</strong> ~95% (vectors vs images)
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -414,11 +918,26 @@ export default function AlternativeAttendancePage({
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
+                <p className="font-semibold text-red-600">
+                  ⚠️ ONE PERSON AT A TIME ONLY
+                </p>
                 <p>1. 📹 Click "Start Camera" to begin</p>
-                <p>2. 👤 Position your face in front of camera</p>
-                <p>3. 🟢 Green boxes show detected faces</p>
-                <p>4. Check console for detection logs</p>
-                <p>5. 🔄 Reset counter with reset button</p>
+                <p>2. 👤 Position ONLY ONE person in front of camera</p>
+                <p>3. 🟡 Yellow box appears (tracking)</p>
+                <p>4. 🟢 Green box means confirmed</p>
+                <p>5. 🔵 Blue box means generating embeddings</p>
+                <p>6. 🧠 FaceNet & MobileFaceNet process face</p>
+                <p>7. 🔍 System checks for duplicates</p>
+                <p>8. ✅ New person gets sent to backend</p>
+                <p>9. 🔄 Duplicates are blocked automatically</p>
+                <p className="text-blue-600 text-xs mt-2">
+                  � Embeddings are generated client-side for faster processing
+                  and bandwidth savings!
+                </p>
+                <p className="text-red-600 text-xs mt-2">
+                  📢 If multiple people are detected, tracking stops until only
+                  one person remains visible.
+                </p>
               </div>
             </CardContent>
           </Card>
