@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera, CameraOff, Users, RotateCcw } from "lucide-react";
+import { registerattendance } from "@/lib/actions";
 
 interface Detection {
   topLeft: [number, number];
@@ -78,28 +79,6 @@ export default function AlternativeAttendancePage({
     height: 480,
     facingMode: "user", // Always use front camera for laptop
   };
-
-  // Helper function to calculate Intersection over Union (IoU) for bounding box matching
-  const calculateIoU = useCallback((boxA: number[], boxB: number[]): number => {
-    const [ax1, ay1, ax2, ay2] = boxA;
-    const [bx1, by1, bx2, by2] = boxB;
-
-    const x_inter1 = Math.max(ax1, bx1);
-    const y_inter1 = Math.max(ay1, by1);
-    const x_inter2 = Math.min(ax2, bx2);
-    const y_inter2 = Math.min(ay2, by2);
-
-    const inter_width = Math.max(0, x_inter2 - x_inter1);
-    const inter_height = Math.max(0, y_inter2 - y_inter1);
-    const inter_area = inter_width * inter_height;
-
-    const boxA_area = (ax2 - ax1) * (ay2 - ay1);
-    const boxB_area = (bx2 - bx1) * (by2 - by1);
-
-    const union_area = boxA_area + boxB_area - inter_area;
-
-    return union_area > 0 ? inter_area / union_area : 0;
-  }, []);
 
   // Helper function to crop face from video and convert to blob for backend
   const cropFaceImage = useCallback(
@@ -239,13 +218,7 @@ export default function AlternativeAttendancePage({
         };
 
         // TODO: Replace with your actual FastAPI backend endpoint
-        const response = await fetch("/api/process-attendance-embedding", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(backendPayload),
-        });
+        const response = await registerattendance(backendPayload);
 
         if (response.ok) {
           const result = await response.json();

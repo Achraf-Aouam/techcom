@@ -590,3 +590,24 @@ export async function getClubs(
   }
   return response.json();
 }
+
+export async function registerattendance(reqpayload: {
+  embedding: number[];
+  modelName: string;
+  event_id: string;
+  face_id: string;
+}) {
+  const token = await getBearerToken();
+  if (!token) {
+    throw new Error("Authentication required.");
+  }
+  const response = await fetch("/api/process-attendance-embedding", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(reqpayload),
+  });
+  return response;
+}
