@@ -601,13 +601,16 @@ export async function registerattendance(reqpayload: {
   if (!token) {
     throw new Error("Authentication required.");
   }
-  const response = await fetch("/api/process-attendance-embedding", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(reqpayload),
-  });
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/events/attendbyface`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(reqpayload),
+    }
+  );
   return response;
 }

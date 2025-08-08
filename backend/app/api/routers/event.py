@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from sqlalchemy import text
+from pydantic import BaseModel
 
 from app.db import get_db
 from app.model.model import (
@@ -16,6 +17,23 @@ from app.schema.enums import EventStatusType, UserRoleType
 from app.api.deps import get_current_user
 
 router = APIRouter()
+
+
+class AttendanceRequest(BaseModel):
+    embedding: List[float]  # 128-dimensional FaceNet embedding
+    modelName: str  # "FaceNet"
+    event_id: str  # Event identifier
+    face_id: str  # Unique face identifier
+
+
+"""
+{
+  "embedding": [0.123, -0.456, ...], // 128-dimensional FaceNet embedding
+  "modelName": "FaceNet",
+  "event_id": "your_event_id",
+  "face_id": "face_12345_abc"
+}
+"""
 
 
 # get all events with optional club_id filter and role based evenstatus access, role 1.2.3
@@ -568,3 +586,37 @@ def get_event_stats(
         "member_attendance_rate": member_attendance_rate,
         "non_member_attendance": non_member_attendance,
     }
+
+
+@router.post("/attendbyface", status_code=status.HTTP_200_OK)
+def register_attendance_by_face(
+    request: AttendanceRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    event_id = request.event_id
+    is_manager = current_user.role == UserRoleType.CLUB_MANAGER
+
+    if current_user.role == UserRoleType.STUDENT or current_user == UserRoleType.SAO_ADMIN:  # type: ignore
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to register attendees",
+        )
+    event = db.query(EventModel).filter(EventModel.id == event_id).first()
+    if not event:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
+        )
+    is_event_owner = False
+    club = db.query(ClubModel).filter(ClubModel.id == event.club_id).first()
+    if not club:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
+        )
+    is_event_owner = is_manager and current_user.id == club.manager_id
+
+    if not (bool(is_event_owner)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not club owner not authorized to register attendees",
+        )
